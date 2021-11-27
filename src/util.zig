@@ -120,30 +120,6 @@ pub const Contents = struct {
 
     allocator: *std.mem.Allocator,
     day01: []u8,
-    // day02: []u8,
-    // day03: []u8,
-    // day04: []u8,
-    // day05: []u8,
-    // day06: []u8,
-    // day07: []u8,
-    // day08: []u8,
-    // day09: []u8,
-    // day10: []u8,
-    // day11: []u8,
-    // day12: []u8,
-    // day13: []u8,
-    // day14: []u8,
-    // day15: []u8,
-    // day16: []u8,
-    // day17: []u8,
-    // day18: []u8,
-    // day19: []u8,
-    // day20: []u8,
-    // day21: []u8,
-    // day22: []u8,
-    // day23: []u8,
-    // day24: []u8,
-    // day25: []u8,
 
     pub fn load(allocator: *std.mem.Allocator) !Self {
         var dir = std.fs.cwd();
@@ -161,15 +137,14 @@ pub const Contents = struct {
     }
 };
 
-pub fn writeResponse(out: anytype, day: usize, part1: anytype, part2: anytype, start: i128, end: i128) !void {
-    var time = end - start;
+pub fn writeResponse(out: anytype, day: usize, part1: anytype, part2: anytype, duration: i128) !void {
     try out.print("problem {}:\n", .{day});
     try out.print("\tpart 1:\t{}\n", .{part1});
     try out.print("\tpart 2:\t{}\n", .{part2});
-    if (@divFloor(time, 1_000) < 1000) {
-        try out.print("\ttime:\t{d}us\n\n", .{@divFloor(time, 1_000)});
+    if (@divFloor(duration, 1_000) < 1000) {
+        try out.print("\ttime:\t{d}us\n\n", .{@divFloor(duration, 1_000)});
     } else {
-        try out.print("\ttime:\t{d}ms\n\n", .{@divFloor(time, 1_000_000)});
+        try out.print("\ttime:\t{d}ms\n\n", .{@divFloor(duration, 1_000_000)});
     }
 }
 
