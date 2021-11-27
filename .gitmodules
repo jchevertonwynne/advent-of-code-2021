@@ -1,0 +1,3 @@
+[submodule "vendor/mecha"]
+	path = vendor/mecha
+	url = git@github.com:Hejsil/mecha.git
