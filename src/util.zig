@@ -137,7 +137,7 @@ pub const Contents = struct {
     }
 };
 
-pub fn writeResponse(out: anytype, day: usize, part1: anytype, part2: anytype, duration: i128) !void {
+pub fn writeResponse(out: anytype, comptime day: usize, part1: anytype, part2: anytype, duration: i128) !void {
     try out.print("problem {}:\n", .{day});
     try out.print("\tpart 1:\t{}\n", .{part1});
     try out.print("\tpart 2:\t{}\n", .{part2});
