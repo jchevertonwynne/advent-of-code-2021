@@ -2,16 +2,12 @@ const std = @import("std");
 
 const util = @import("../util.zig");
 
-const ArrayList = std.ArrayList;
-
-pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
+pub fn run(contents: []u8, out: anytype) !i128 {
     var start = std.time.nanoTimestamp();
 
-    var numbers = try loadNumbers(contents, allocator);
-    defer allocator.free(numbers);
-
-    var p1 = part1(numbers);
-    var p2 = part2(numbers);
+    var p1: usize = 0;
+    var p2: usize = 0;
+    try solve(contents, &p1, &p2);
 
     var duration = std.time.nanoTimestamp() - start;
 
@@ -20,32 +16,20 @@ pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
     return duration;
 }
 
-fn loadNumbers(contents: []u8, allocator: *std.mem.Allocator) ![]usize {
-    var numbers = ArrayList(usize).init(allocator);
-    errdefer numbers.deinit();
-
+fn solve(contents: []u8, p1: *usize, p2: *usize) !void {
     var lines = std.mem.tokenize(u8, contents, "\n");
-    while (lines.next()) |line|
-        try numbers.append(try std.fmt.parseInt(usize, line, 10));
 
-    return numbers.toOwnedSlice();
-}
+    var parsed: [4]usize = undefined;
+    var n: usize = 0;
 
-fn part1(numbers: []usize) usize {
-    return solve(numbers, 1);
-}
-
-fn part2(numbers: []usize) usize {
-    return solve(numbers, 3);
-}
-
-fn solve(numbers: []usize, dist: usize) usize {
-    var result: usize = 0;
-
-    for (numbers[0..numbers.len - dist]) |_, i| {
-        if (numbers[i] < numbers[i + dist])
-            result += 1;
+    while (lines.next()) |line| {
+        parsed[n % parsed.len] = try std.fmt.parseInt(usize, line, 10);
+        if (n >= 1 and parsed[n % parsed.len] > parsed[(n - 1) % parsed.len]) {
+            p1.* += 1;
+        }
+        if (n >= 3 and parsed[n % parsed.len] > parsed[(n - 3) % parsed.len]) {
+            p2.* += 1;
+        }
+        n += 1;
     }
-
-    return result;
 }

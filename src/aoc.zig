@@ -27,7 +27,7 @@ pub fn main() !void {
     var duration: i128 = 0;
 
     // run days here
-    duration += try day01.run(contents.day01, &writer, allocator);
+    duration += try day01.run(contents.day01, &writer);
 
     try writer.print("aoc ran in:\n", .{});
     try writer.print("\t{d}ms\n", .{@divFloor(duration, 1_000_000)});
