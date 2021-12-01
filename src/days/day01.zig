@@ -20,9 +20,9 @@ fn solve(contents: []u8, p1: *usize, p2: *usize) !void {
     var lines = std.mem.tokenize(u8, contents, "\n");
 
     var parsed: [4]usize = undefined;
+    
     var n: usize = 0;
-
-    while (lines.next()) |line| {
+    while (lines.next()) |line| : (n += 1) {
         parsed[n % parsed.len] = try std.fmt.parseInt(usize, line, 10);
         if (n >= 1 and parsed[n % parsed.len] > parsed[(n - 1) % parsed.len]) {
             p1.* += 1;
@@ -30,6 +30,5 @@ fn solve(contents: []u8, p1: *usize, p2: *usize) !void {
         if (n >= 3 and parsed[n % parsed.len] > parsed[(n - 3) % parsed.len]) {
             p2.* += 1;
         }
-        n += 1;
     }
 }
