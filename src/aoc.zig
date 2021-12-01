@@ -1,7 +1,7 @@
 const builtin = @import("builtin");
 const std = @import("std");
 
-// const day01 = @import("./days/day01.zig");
+const day01 = @import("./days/day01.zig");
 const util = @import("util.zig");
 
 const Contents = util.Contents;
@@ -12,9 +12,9 @@ pub fn main() !void {
     var genAllocator = std.heap.GeneralPurposeAllocator(.{}){};
     defer std.debug.assert(!genAllocator.deinit());
 
-    var allocator = if (builtin.mode == .Debug) 
+    var allocator = if (builtin.mode == .Debug)
         &genAllocator.allocator
-    else 
+    else
         &arenaAlloc.allocator;
 
     var contents = try Contents.load(allocator);
@@ -27,7 +27,7 @@ pub fn main() !void {
     var duration: i128 = 0;
 
     // run days here
-    // duration += try day01.run(contents.day01, out, allocator);
+    duration += try day01.run(contents.day01, &writer, allocator);
 
     try writer.print("aoc ran in:\n", .{});
     try writer.print("\t{d}ms\n", .{@divFloor(duration, 1_000_000)});

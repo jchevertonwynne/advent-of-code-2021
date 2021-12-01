@@ -2,6 +2,8 @@ const std = @import("std");
 
 const util = @import("../util.zig");
 
+const ArrayList = std.ArrayList;
+
 pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
     var start = std.time.nanoTimestamp();
 
@@ -10,9 +12,7 @@ pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
     var p1: usize = 0;
     var p2: usize = 0;
 
-    var end = std.time.nanoTimestamp();
-
-    var duration = end - start;
+    var duration = std.time.nanoTimestamp() - start;
 
     try util.writeResponse(out, 1, p1, p2, duration);
 
