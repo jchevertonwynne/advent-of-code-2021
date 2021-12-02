@@ -16,7 +16,7 @@ pub fn run(contents: []u8, out: anytype) !i128 {
     return duration;
 }
 
-const Direction = enum { forward, down, up };
+const Direction = enum(u8) { forward = 'f', down = 'd', up = 'u' };
 
 const Action = struct { direction: Direction, distance: usize };
 
@@ -31,18 +31,9 @@ fn solve2(contents: []u8, p1: *usize, p2: *usize) !void {
     var lines = std.mem.tokenize(u8, contents, "\n");
     while (lines.next()) |line| {
         var split = std.mem.indexOf(u8, line, " ") orelse return error.NoSpace;
-        var actionString = line[0..split];
 
         var distance = try std.fmt.parseInt(usize, line[split + 1 ..], 10);
-        var action = Action{ .direction = undefined, .distance = distance };
-        if (std.mem.eql(u8, actionString, "forward"))
-            action.direction = .forward
-        else if (std.mem.eql(u8, actionString, "down"))
-            action.direction = .down
-        else if (std.mem.eql(u8, actionString, "up"))
-            action.direction = .up
-        else
-            return error.NoActionMatch;
+        var action = Action{ .direction = @intToEnum(Direction, line[0]), .distance = distance };
 
         switch (action.direction) {
             .down => {
