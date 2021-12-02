@@ -120,20 +120,25 @@ pub const Contents = struct {
 
     allocator: *std.mem.Allocator,
     day01: []u8,
+    day02: []u8,
 
     pub fn load(allocator: *std.mem.Allocator) !Self {
         var dir = std.fs.cwd();
         var day01String = try dir.readFileAlloc(allocator, "files/01.txt", std.math.maxInt(usize));
         errdefer allocator.free(day01String);
+        var day02String = try dir.readFileAlloc(allocator, "files/02.txt", std.math.maxInt(usize));
+        errdefer allocator.free(day02String);
 
         return Self{
             .allocator = allocator,
             .day01 = day01String,
+            .day02 = day02String,
         };
     }
 
     pub fn discard(self: Self) void {
         self.allocator.free(self.day01);
+        self.allocator.free(self.day02);
     }
 };
 

@@ -20,7 +20,7 @@ fn solve(contents: []u8, p1: *usize, p2: *usize) !void {
     var lines = std.mem.tokenize(u8, contents, "\n");
 
     var parsed: [4]usize = undefined;
-    
+
     var n: usize = 0;
     while (lines.next()) |line| : (n += 1) {
         parsed[n % parsed.len] = try std.fmt.parseInt(usize, line, 10);
