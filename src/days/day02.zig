@@ -7,7 +7,6 @@ pub fn run(contents: []u8, out: anytype) !i128 {
 
     var p1: usize = 0;
     var p2: usize = 0;
-
     try solve2(contents, &p1, &p2);
 
     var duration = std.time.nanoTimestamp() - start;
@@ -33,13 +32,15 @@ fn solve2(contents: []u8, p1: *usize, p2: *usize) !void {
     while (lines.next()) |line| {
         var split = std.mem.indexOf(u8, line, " ") orelse return error.NoSpace;
         var actionString = line[0..split];
-        var dist = try std.fmt.parseInt(usize, line[split + 1 ..], 10);
-        var action: Action = if (std.mem.eql(u8, actionString, "forward"))
-            Action{ .direction = .forward, .distance = dist }
+
+        var distance = try std.fmt.parseInt(usize, line[split + 1 ..], 10);
+        var action = Action{ .direction = undefined, .distance = distance };
+        if (std.mem.eql(u8, actionString, "forward"))
+            action.direction = .forward
         else if (std.mem.eql(u8, actionString, "down"))
-            Action{ .direction = .down, .distance = dist }
+            action.direction = .down
         else if (std.mem.eql(u8, actionString, "up"))
-            Action{ .direction = .up, .distance = dist }
+            action.direction = .up
         else
             return error.NoActionMatch;
 
