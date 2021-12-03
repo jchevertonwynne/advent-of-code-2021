@@ -49,83 +49,8 @@ pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
     var swap = try std.ArrayList([]u8).initCapacity(allocator, oxygenNumbers.items.len);
     defer swap.deinit();
 
-    var oxygen: usize = 0;
-
-    ind = 0;
-    while (ind < newLine) : (ind += 1) {
-        swap.clearRetainingCapacity();
-
-        var count: usize = 0;
-        for (oxygenNumbers.items) |n| {
-            if (n[ind] == '1') {
-                count += 1;
-            }
-        }
-
-        var toAccept: u8 = if (count * 2 >= oxygenNumbers.items.len) '1' else '0';
-        for (oxygenNumbers.items) |n| {
-            if (n[ind] == toAccept) {
-                try swap.append(n);
-            }
-        }
-
-        if (swap.items.len == 1) {
-            oxygen = block: {
-                var res: usize = 0;
-                for (swap.items[0]) |b| {
-                    res <<= 1;
-                    if (b == '1')
-                        res += 1;
-                }
-                break :block res;
-            };
-
-            break;
-        }
-
-        var t = oxygenNumbers;
-        oxygenNumbers = swap;
-        swap = t;
-    }
-
-    var co2: usize = 0;
-
-    ind = 0;
-    while (ind < newLine) : (ind += 1) {
-        swap.clearRetainingCapacity();
-
-        var count: usize = 0;
-        for (co2Numbers.items) |n| {
-            if (n[ind] == '1') {
-                count += 1;
-            }
-        }
-
-        var toAccept: u8 = if (count * 2 >= co2Numbers.items.len) '0' else '1';
-        for (co2Numbers.items) |c| {
-            if (c[ind] == toAccept) {
-                try swap.append(c);
-            }
-        }
-
-        if (swap.items.len == 1) {
-            co2 = block: {
-                var res: usize = 0;
-                for (swap.items[0]) |b| {
-                    res <<= 1;
-                    if (b == '1')
-                        res += 1;
-                }
-                break :block res;
-            };
-
-            break;
-        }
-
-        var t = co2Numbers;
-        co2Numbers = swap;
-        swap = t;
-    }
+    var oxygen: usize = try runner(newLine, &oxygenNumbers, &swap, oxygenCondition);
+    var co2 = try runner(newLine, &co2Numbers, &swap, co2Condition);
 
     var p1: usize = gamma * epsilon;
     var p2: usize = oxygen * co2;
@@ -135,4 +60,49 @@ pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
     try util.writeResponse(out, 3, p1, p2, duration);
 
     return duration;
+}
+
+fn oxygenCondition(count: usize, actual: usize) u8 {
+    return if (count * 2 >= actual) '1' else '0';
+}
+
+fn co2Condition(count: usize, actual: usize) u8 {
+    return if (count * 2 >= actual) '0' else '1';
+}
+
+fn runner(lineLength: usize, main: *std.ArrayList([]u8), swap: *std.ArrayList([]u8), condition: fn (usize, usize) u8) !usize {
+    var ind: usize = 0;
+    while (ind < lineLength) : (ind += 1) {
+        swap.clearRetainingCapacity();
+
+        var count: usize = 0;
+        for (main.items) |n| {
+            if (n[ind] == '1') {
+                count += 1;
+            }
+        }
+
+        var toAccept: u8 = condition(count, main.items.len);
+        for (main.items) |c| {
+            if (c[ind] == toAccept) {
+                try swap.append(c);
+            }
+        }
+
+        if (swap.items.len == 1) {
+            var res: usize = 0;
+            for (swap.items[0]) |b| {
+                res <<= 1;
+                if (b == '1')
+                    res += 1;
+            }
+            return res;
+        }
+
+        var t = main.*;
+        main.* = swap.*;
+        swap.* = t;
+    }
+
+    return error.NoSolutionFound;
 }
