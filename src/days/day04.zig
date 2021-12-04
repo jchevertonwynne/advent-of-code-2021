@@ -11,7 +11,7 @@ pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
         allocator.free(state.called);
     }
 
-    var p1: usize = try part1(state, allocator);
+    var p1: usize = try part1(state);
     var p2: usize = try part2(state, allocator);
 
     var duration = std.time.nanoTimestamp() - start;
@@ -21,19 +21,18 @@ pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
     return duration;
 }
 
-fn part1(state: State, allocator: *std.mem.Allocator) !usize {
-    var seen = util.HashSet(usize).init(allocator);
-    defer seen.deinit();
+fn part1(state: State) !usize {
+    var seen = [_]bool{false} ** 100;
 
     for (state.called) |called| {
-        try seen.insert(called);
+        seen[called] = true;
         for (state.boards) |board| {
             if (board.won(seen)) {
                 var result: usize = 0;
 
                 for (board.board) |row| {
                     for (row) |c| {
-                        if (!seen.contains(c))
+                        if (!seen[c])
                             result += c;
                     }
                 }
@@ -57,13 +56,12 @@ fn part2(state: State, allocator: *std.mem.Allocator) !usize {
     for (state.boards) |*board|
         try boards.append(board);
 
-    var seen = util.HashSet(usize).init(allocator);
-    defer seen.deinit();
+    var seen = [_]bool{false} ** 100;
 
     for (state.called) |called, i| {
         swap.clearRetainingCapacity();
 
-        try seen.insert(called);
+        seen[called] = true;
         for (boards.items) |b|
             if (!b.won(seen))
                 try swap.append(b);
@@ -73,13 +71,13 @@ fn part2(state: State, allocator: *std.mem.Allocator) !usize {
             var lastBoard = swap.items[0];
 
             while (!lastBoard.won(seen)) : (ind += 1)
-                try seen.insert(state.called[ind]);
+                seen[state.called[ind]] = true;
 
             var result: usize = 0;
 
             for (lastBoard.board) |row| {
                 for (row) |c| {
-                    if (!seen.contains(c))
+                    if (!seen[c])
                         result += c;
                 }
             }
@@ -102,13 +100,13 @@ const Board = struct {
 
     board: [5][5]usize,
 
-    fn won(self: Self, seen: util.HashSet(usize)) bool {
+    fn won(self: Self, seen: [100]bool) bool {
         {
             var row: usize = 0;
             while (row < 5) : (row += 1) {
                 var col: usize = 0;
                 while (col < 5) : (col += 1) {
-                    if (!seen.contains(self.board[row][col]))
+                    if (!seen[self.board[row][col]])
                         break;
                 } else return true;
             }
@@ -119,7 +117,7 @@ const Board = struct {
             while (col < 5) : (col += 1) {
                 var row: usize = 0;
                 while (row < 5) : (row += 1) {
-                    if (!seen.contains(self.board[row][col]))
+                    if (!seen[self.board[row][col]])
                         break;
                 } else return true;
             }
