@@ -43,8 +43,7 @@ fn toUsize(contents: []u8, number: *usize, size: *usize) void {
             result *= 10;
             result += @as(usize, char - '0');
             characters = i;
-        } else
-            break;
+        } else break;
     }
 
     number.* = result;

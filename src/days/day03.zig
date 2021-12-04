@@ -17,7 +17,7 @@ pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
     var ind: usize = 0;
     while (ind < contents.len) : (ind += newLine + 1) {
         var curr: usize = 0;
-        for (contents[ind..ind+newLine]) |c| {
+        for (contents[ind .. ind + newLine]) |c| {
             table[curr] += 1;
             curr *= 2;
             curr += c - '0';
@@ -26,13 +26,13 @@ pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
 
     var gamma: usize = 0;
     ind = 0;
-    while (ind < table.len) {
+    while (ind * 2 + 2 < table.len) {
         gamma <<= 1;
         var a = table[ind * 2 + 1];
-        var b = table[ind * 2 + 1];
+        var b = table[ind * 2 + 2];
         ind *= 2;
-        ind += @boolToInt(b > a);
-        gamma += @boolToInt(b > a);
+        ind += @boolToInt(b > a) + 1;
+        gamma += @boolToInt(b > a) + 1;
     }
 
     var mask: usize = 1;
@@ -65,9 +65,8 @@ fn runner(lineLength: usize, main: *std.ArrayList([]u8), swap: *std.ArrayList([]
         for (main.items) |potential| {
             if (potential[ind] == toAccept)
                 try swap.append(potential)
-            else
-                for (potential) |digit, i|
-                    buf[i] -= (digit - '0') * 2;
+            else for (potential) |digit, i|
+                buf[i] -= (digit - '0') * 2;
         }
 
         if (swap.items.len == 1) {
