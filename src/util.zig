@@ -166,7 +166,9 @@ pub fn writeResponse(out: anytype, comptime day: usize, part1: anytype, part2: a
     try out.print("problem {}:\n", .{day});
     try out.print("\tpart 1:\t{}\n", .{part1});
     try out.print("\tpart 2:\t{}\n", .{part2});
-    if (@divFloor(duration, 1_000) < 1000) {
+    if (duration < 1000) {
+        try out.print("\ttime:\t{d}ns\n\n", .{duration});
+    } else if (duration < 1_000_000) {
         try out.print("\ttime:\t{d}us\n\n", .{@divFloor(duration, 1_000)});
     } else {
         try out.print("\ttime:\t{d}ms\n\n", .{@divFloor(duration, 1_000_000)});
