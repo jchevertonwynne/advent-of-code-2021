@@ -5,46 +5,46 @@ const util = @import("../util.zig");
 pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
     var start = std.time.nanoTimestamp();
 
-    var newLine = std.mem.indexOf(u8, contents, "\n") orelse return error.NoNewLine;
-    // var totalCount = contents.len / (newLine + 1);
+    var newline = std.mem.indexOf(u8, contents, "\n") orelse return error.Nonewline;
+    var totalCount = contents.len / (newline + 1);
 
-    // 3875 220
+    var part1Table = try allocator.alloc(usize, newline);
+    defer allocator.free(part1Table);
+    for (part1Table) |*t|
+        t.* = 0;
 
-    var table = try allocator.alloc(usize, std.math.pow(usize, 2, newLine));
-    defer allocator.free(table);
-
-    for (table) |*t|
+    var part2Table = try allocator.alloc(usize, std.math.pow(usize, 2, newline + 2));
+    defer allocator.free(part2Table);
+    for (part2Table) |*t|
         t.* = 0;
 
     var ind: usize = 0;
-    while (ind < contents.len) : (ind += newLine + 1) {
-        var curr: usize = 0;
-        for (contents[ind .. ind + newLine]) |c| {
-            table[curr] += 1;
-            curr *= 2;
+    while (ind < contents.len) : (ind += newline + 1) {
+        var curr: usize = 1;
+        for (contents[ind .. ind + newline]) |c, i| {
+            part1Table[i] += c - '0';
+            part2Table[curr + c - '0'] += 1;
             curr += c - '0';
+            curr *= 2;
+            curr += 1;
         }
     }
 
     var gamma: usize = 0;
-    ind = 0;
-    var bit: usize = 0;
-    while (bit < newLine) : (bit += 1) {
+    ind = 1;
+    for (part1Table) |t| {
         gamma <<= 1;
-        var a = table[ind];
-        var shift: usize = 1;
-        shift <<= @truncate(u6, bit);
-        var b = table[ind + shift];
-        ind *= 2;
-        ind += @boolToInt(b > a) + 1;
-        gamma += @boolToInt(b > a) + 1;
+        gamma += @boolToInt((t * 2) >= totalCount);
     }
 
     var mask: usize = 1;
-    mask <<= @truncate(u6, newLine);
-    var p1: usize = gamma * ((~gamma) & (mask - 1));
+    mask <<= @truncate(u6, newline);
+    var epsilon = ((~gamma) & (mask - 1));
+    var p1: usize = gamma * epsilon;
 
-    var p2: usize = 0;
+    var oxygen = calculateChemical(.oxygen, newline, part2Table);
+    var co2 = calculateChemical(.co2, newline, part2Table);
+    var p2: usize = oxygen * co2;
 
     var duration = std.time.nanoTimestamp() - start;
 
@@ -53,40 +53,36 @@ pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
     return duration;
 }
 
-fn oxygenCondition(count: usize, actual: usize) u8 {
-    return @as(u8, @boolToInt(count >= actual)) + '0';
-}
+const Chemical = enum { oxygen, co2 };
 
-fn co2Condition(count: usize, actual: usize) u8 {
-    return @as(u8, @boolToInt(count < actual)) + '0';
-}
+fn calculateChemical(comptime chemical: Chemical, newline: usize, table: []usize) usize {
+    var bits: usize = 0;
+    var ind: usize = 1;
+    var result: usize = 0;
+    while (bits < newline) : (bits += 1) {
+        var left = table[ind];
+        var right = table[ind + 1];
+        var res = switch (chemical) {
+            .oxygen => block: {
+                if (left + right == 1) {
+                    break :block 1 - left;
+                }
+                break :block @boolToInt(left <= right);
+            },
+            .co2 => block: {
+                if (left + right == 1) {
+                    break :block 1 - left;
+                }
+                break :block @boolToInt(table[ind + 1] < table[ind]);
+            },
+        };
 
-fn runner(lineLength: usize, main: *std.ArrayList([]u8), swap: *std.ArrayList([]u8), buf: []usize, condition: fn (usize, usize) u8) !usize {
-    var ind: usize = 0;
-    while (ind < lineLength) : (ind += 1) {
-        swap.clearRetainingCapacity();
-
-        var toAccept: u8 = condition(buf[ind], main.items.len);
-        for (main.items) |potential| {
-            if (potential[ind] == toAccept)
-                try swap.append(potential)
-            else for (potential) |digit, i|
-                buf[i] -= (digit - '0') * 2;
-        }
-
-        if (swap.items.len == 1) {
-            var res: usize = 0;
-            for (swap.items[0]) |b| {
-                res <<= 1;
-                res += b - '0';
-            }
-            return res;
-        }
-
-        var t = main.*;
-        main.* = swap.*;
-        swap.* = t;
+        result <<= 1;
+        result += res;
+        ind += res;
+        ind *= 2;
+        ind += 1;
     }
 
-    return error.NoSolutionFound;
+    return result;
 }
