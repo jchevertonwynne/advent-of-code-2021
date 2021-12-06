@@ -19,8 +19,8 @@ pub fn run(contents: []u8, out: anytype) !i128 {
 }
 
 fn solve(fish: [9]usize, p1: *usize, p2: *usize) void {
-    const p1Mults = [_]usize{ 1421, 1401, 1191, 1154, 1034, 950, 905, 0, 0 };
-    const p2Mults = [_]usize{ 6703087164, 6206821033, 5617089148, 5217223242, 4726100874, 4368232009, 3989468462, 0, 0 };
+    const p1Mults = comptime createTable(80);
+    const p2Mults = comptime createTable(256);
 
     p1.* = 0;
     inline for (p1Mults) |mult, i|
@@ -41,4 +41,26 @@ fn loadFish(contents: []u8) [9]usize {
     }
 
     return fish;
+}
+
+fn createTable(comptime limit: usize) [9]usize {
+    const Vector = std.meta.Vector;
+    @setEvalBranchQuota(100_000);
+    var buckets = [_]Vector(9, usize){Vector(9, usize){ 0, 0, 0, 0, 0, 0, 0, 0, 0 }} ** 9;
+    for (buckets[0..7]) |*m, i|
+        m.*[i] = 1;
+
+    var repeat: usize = 0;
+    while (repeat < limit) : (repeat += 1) {
+        std.mem.rotate(Vector(9, usize), &buckets, 1);
+        buckets[6] += buckets[8];
+    }
+
+    var result = [_]usize{0} ** 9;
+    for (buckets) |origins| {
+        for (result) |*r, i|
+            r.* += origins[i];
+    }
+
+    return result;
 }
