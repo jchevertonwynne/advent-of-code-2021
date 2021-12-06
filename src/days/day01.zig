@@ -23,7 +23,7 @@ fn solve(contents: []u8, p1: *usize, p2: *usize) !void {
     while (ind < contents.len) : (n += 1) {
         var number: usize = undefined;
         var size: usize = undefined;
-        util.toUsize(contents[ind..], &number, &size);
+        util.toUint(usize, contents[ind..], &number, &size);
         parsed[n % parsed.len] = number;
         if (n >= 1 and parsed[n % parsed.len] > parsed[(n - 1) % parsed.len])
             p1.* += 1;

@@ -124,6 +124,7 @@ pub const Contents = struct {
     day03: []u8,
     day04: []u8,
     day05: []u8,
+    day06: []u8,
 
     pub fn load(allocator: *std.mem.Allocator) !Self {
         var dir = std.fs.cwd();
@@ -137,6 +138,8 @@ pub const Contents = struct {
         errdefer allocator.free(day04String);
         var day05String = try dir.readFileAlloc(allocator, "files/05.txt", std.math.maxInt(usize));
         errdefer allocator.free(day05String);
+        var day06String = try dir.readFileAlloc(allocator, "files/06.txt", std.math.maxInt(usize));
+        errdefer allocator.free(day05String);
 
         return Self{
             .allocator = allocator,
@@ -145,6 +148,7 @@ pub const Contents = struct {
             .day03 = day03String,
             .day04 = day04String,
             .day05 = day05String,
+            .day06 = day06String,
         };
     }
 
@@ -154,6 +158,7 @@ pub const Contents = struct {
         self.allocator.free(self.day03);
         self.allocator.free(self.day04);
         self.allocator.free(self.day05);
+        self.allocator.free(self.day06);
     }
 };
 
@@ -185,14 +190,14 @@ fn fakeResize(
     @panic("never call me please");
 }
 
-pub fn toUsize(contents: []u8, number: *usize, size: *usize) void {
-    var result: usize = 0;
+pub fn toUint(comptime T: type, contents: []u8, number: *T, size: *usize) void {
+    var result: T = 0;
     var characters: usize = 0;
 
     for (contents) |char, i| {
         if ('0' <= char and char <= '9') {
             result *= 10;
-            result += @as(usize, char - '0');
+            result += @as(T, char - '0');
             characters = i;
         } else break;
     }
