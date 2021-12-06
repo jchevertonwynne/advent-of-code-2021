@@ -18,37 +18,17 @@ pub fn run(contents: []u8, out: anytype) !i128 {
     return duration;
 }
 
-fn solve(_fish: [9]usize, p1: *usize, p2: *usize) void {
-    var fish = _fish;
-
-    var turn: usize = 0;
-    while (turn < 80) : (turn += 1) {
-        var newFish = fish[0];
-        var i: usize = 0;
-        while (i < fish.len - 1) : (i += 1) {
-            fish[i] = fish[i + 1];
-        }
-        fish[6] += newFish;
-        fish[8] = newFish;
-    }
+fn solve(fish: [9]usize, p1: *usize, p2: *usize) void {
+    const p1Mults = [_]usize{ 1421, 1401, 1191, 1154, 1034, 950, 905, 0, 0 };
+    const p2Mults = [_]usize{ 6703087164, 6206821033, 5617089148, 5217223242, 4726100874, 4368232009, 3989468462, 0, 0 };
 
     p1.* = 0;
-    for (fish) |f|
-        p1.* += f;
-
-    while (turn < 256) : (turn += 1) {
-        var newFish = fish[0];
-        var i: usize = 0;
-        while (i < fish.len - 1) : (i += 1) {
-            fish[i] = fish[i + 1];
-        }
-        fish[6] += newFish;
-        fish[8] = newFish;
-    }
+    inline for (p1Mults) |mult, i|
+        p1.* += mult * fish[i];
 
     p2.* = 0;
-    for (fish) |f|
-        p2.* += f;
+    inline for (p2Mults) |mult, i|
+        p2.* += mult * fish[i];
 }
 
 fn loadFish(contents: []u8) [9]usize {
