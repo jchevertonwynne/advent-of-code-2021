@@ -8,6 +8,8 @@ pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
     var newLine = std.mem.indexOf(u8, contents, "\n") orelse return error.NoNewLine;
     // var totalCount = contents.len / (newLine + 1);
 
+    // 3875 220
+
     var table = try allocator.alloc(usize, std.math.pow(usize, 2, newLine));
     defer allocator.free(table);
 
@@ -26,10 +28,13 @@ pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
 
     var gamma: usize = 0;
     ind = 0;
-    while (ind * 2 + 2 < table.len) {
+    var bit: usize = 0;
+    while (bit < newLine) : (bit += 1) {
         gamma <<= 1;
-        var a = table[ind * 2 + 1];
-        var b = table[ind * 2 + 2];
+        var a = table[ind];
+        var shift: usize = 1;
+        shift <<= @truncate(u6, bit);
+        var b = table[ind + shift];
         ind *= 2;
         ind += @boolToInt(b > a) + 1;
         gamma += @boolToInt(b > a) + 1;
