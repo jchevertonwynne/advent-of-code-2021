@@ -13,7 +13,7 @@ pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
     for (part1Table) |*t|
         t.* = 0;
 
-    var part2Table = try allocator.alloc(usize, std.math.pow(usize, 2, newline + 2));
+    var part2Table = try allocator.alloc(usize, std.math.pow(usize, 2, newline + 1));
     defer allocator.free(part2Table);
     for (part2Table) |*t|
         t.* = 0;
@@ -23,7 +23,7 @@ pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
         var curr: usize = 1;
         for (contents[ind .. ind + newline]) |c, i| {
             part1Table[i] += c - '0';
-            part2Table[curr + c - '0'] += 1;
+            part2Table[curr + c - '0' - 1] += 1;
             curr += c - '0';
             curr *= 2;
             curr += 1;
@@ -37,9 +37,7 @@ pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
         gamma += @boolToInt((t * 2) >= totalCount);
     }
 
-    var mask: usize = 1;
-    mask <<= @truncate(u6, newline);
-    var epsilon = ((~gamma) & (mask - 1));
+    var epsilon = ((~gamma) & ((@as(usize, 1) << @truncate(u6, newline)) - 1));
     var p1: usize = gamma * epsilon;
 
     var oxygen = calculateChemical(.oxygen, newline, part2Table);
@@ -60,8 +58,8 @@ fn calculateChemical(comptime chemical: Chemical, newline: usize, table: []usize
     var ind: usize = 1;
     var result: usize = 0;
     while (bits < newline) : (bits += 1) {
-        var left = table[ind];
-        var right = table[ind + 1];
+        var left = table[ind - 1];
+        var right = table[ind];
         var res = switch (chemical) {
             .oxygen => block: {
                 if (left + right == 1) {
@@ -73,7 +71,7 @@ fn calculateChemical(comptime chemical: Chemical, newline: usize, table: []usize
                 if (left + right == 1) {
                     break :block 1 - left;
                 }
-                break :block @boolToInt(table[ind + 1] < table[ind]);
+                break :block @boolToInt(right < left);
             },
         };
 
