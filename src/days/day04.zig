@@ -83,7 +83,7 @@ fn part2(state: State) !usize {
 const State = struct {
     const Self = @This();
 
-    called: []usize, 
+    called: []usize,
     boards: []Board,
     allocator: *std.mem.Allocator,
 
@@ -91,7 +91,7 @@ const State = struct {
         self.allocator.free(self.called);
         self.allocator.free(self.boards);
     }
- };
+};
 
 const Board = struct {
     const Self = @This();

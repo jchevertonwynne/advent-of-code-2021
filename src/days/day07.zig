@@ -25,7 +25,7 @@ fn part1(crabs: []usize) usize {
     var middlePos = crabs[middle];
 
     var defaultScore: usize = 0;
-    for (crabs) |crab| 
+    for (crabs) |crab|
         defaultScore += if (crab < middlePos) middlePos - crab else crab - middlePos;
 
     var leftScore = defaultScore;
@@ -66,7 +66,7 @@ fn part1(crabs: []usize) usize {
             break;
         }
     }
-    
+
     return std.math.min(leftScore, rightScore);
 }
 
