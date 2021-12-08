@@ -37,40 +37,8 @@ fn part1(entries: []Entry) usize {
 const patterns = [10]u7{ 0b1011111, 0b0000011, 0b1110110, 0b1110011, 0b0101011, 0b1111001, 0b1111101, 0b1000011, 0b1111111, 0b1111011 };
 
 fn part2(entries: []Entry) usize {
-    var knownRefTable: [7]usize = .{ 0 } ** 7;
-
-    const knownStart = [_]usize{ 1, 4, 7, 8 };
-    inline for (knownStart) |k| {
-        var p = patterns[k];
-        while (@popCount(u7, p) != 0) {
-            knownRefTable[knownRefTable.len - 1 -  @ctz(u7, p)] += 1;
-            p &= ~(@as(u7, 1) << @ctz(u7, p));
-        }
-    }
-
-    var refTable: [7]usize = .{ 0 } ** 7;
-    for (patterns) |pattern| {
-        var p = pattern;
-        while (@popCount(u7, p) != 0) {
-            refTable[refTable.len - 1 -  @ctz(u7, p)] += 1;
-            p &= ~(@as(u7, 1) << @ctz(u7, p));
-        }
-    }
-
-    var segmentCount: [8]usize = .{ 0 } ** 8;
-    for (patterns) |p|
-        segmentCount[@popCount(u7, p)] += 1;
-
-    var diffs: [7]usize = undefined;
-    for (diffs) |*d, i|
-        d.* = refTable[i] - knownRefTable[i];
-
-    // std.io.getStdOut().writer().print("known = {d}\n", .{knownRefTable}) catch unreachable;
-    // std.io.getStdOut().writer().print("all = {d}\n", .{refTable}) catch unreachable;
-    // std.io.getStdOut().writer().print("diffs = {d}\n", .{diffs}) catch unreachable;
-    // std.io.getStdOut().writer().print("segment counts = {d}\n", .{segmentCount}) catch unreachable;
-
     var result: usize = 0;
+    
     for (entries) |entry| {
         var numbers: [10]?[]u8 = .{ null } ** 10;
         var segments: [7]?u8 = .{ null } ** 7;
@@ -81,8 +49,6 @@ fn part2(entries: []Entry) usize {
                 table[p] += 1;
             }
         }
-
-        // std.io.getStdOut().writer().print("initial table = {d}\n", .{table}) catch unreachable;
 
         // segments 3, 4 and 6 exist 6, 4 and 9 times in the table
         segments[3] = @truncate(u8, std.mem.indexOf(usize, &table, &[_]usize{6}) orelse unreachable);
@@ -114,9 +80,6 @@ fn part2(entries: []Entry) usize {
         table[segments[4].?] = 100;
         table[segments[6].?] = 100;
 
-        // std.io.getStdOut().writer().print("{d}\n", .{table}) catch unreachable;
-
-
         // { 6, 5, 6, _, _, 4, _ }
         // { 6, 5, 6, 4, 3, 4, 5}
 
@@ -129,10 +92,7 @@ fn part2(entries: []Entry) usize {
         // 0 (1) 2 3 (4) 5 6 (7) (8) 9
         // 0 (1) 2 (3) (4) (5) (6)
 
-        // std.io.getStdOut().writer().print("{d}\n", .{segments}) catch unreachable;
-
         // diff between seven and one is the 0 segment
-
         for (table) |*t|
             t.* = 0;
         for (numbers[7].?) |n|
@@ -152,10 +112,7 @@ fn part2(entries: []Entry) usize {
                 table[s] += 1;
             }
         }
-        // std.io.getStdOut().writer().print("table before finding segment 2 - all aside from one should be 1 {d}\n", .{table}) catch unreachable;
         segments[2] = @truncate(u8, std.mem.indexOf(usize, &table, &[_]usize{0}) orelse unreachable);
-
-        // std.io.getStdOut().writer().print("completed segments table =  {d}\n", .{segments}) catch unreachable;
 
         // all segments are now know, calculate 0, 2, 3, 5, 6 and 9.
         numbers[0] = calculateNumber(6, segments, [_]usize{0, 2, 3, 4, 5, 6}, entry.patterns);
@@ -164,8 +121,6 @@ fn part2(entries: []Entry) usize {
         numbers[5] = calculateNumber(5, segments, [_]usize{0, 1, 2, 3, 6}, entry.patterns);
         numbers[6] = calculateNumber(6, segments, [_]usize{0, 1, 2, 3, 4, 6}, entry.patterns);
         numbers[9] = calculateNumber(6, segments, [_]usize{0, 1, 2, 3, 5, 6}, entry.patterns);
-
-        // std.io.getStdOut().writer().print("completed numbers =  {d}\n", .{numbers}) catch unreachable;
 
         // use this to calculate based on the outputs
         var number: usize = 0;
@@ -178,9 +133,9 @@ fn part2(entries: []Entry) usize {
                 }
             }
         }
-        // std.io.getStdOut().writer().print("made =  {d}\n", .{number}) catch unreachable;
         result += number;
     }
+
     return result;
 }
 
@@ -191,8 +146,6 @@ fn calculateNumber(comptime expectedSize: usize, segments: [7]?u8, expectedSegme
     }
 
     std.sort.sort(u8, &buf, {}, comptime std.sort.asc(u8));
-
-    // std.io.getStdOut().writer().print("looking for entry {d}\n", .{buf}) catch unreachable;
     
     for (entryPatterns) |pattern| {
         if (std.mem.eql(u8, pattern, &buf)) {
