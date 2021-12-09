@@ -5,7 +5,7 @@ const util = @import("../util.zig");
 pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
     var start = std.time.nanoTimestamp();
 
-    var newline = std.mem.indexOf(u8, contents, "\n") orelse return error.Nonewline;
+    var newline = std.mem.indexOf(u8, contents, "\n") orelse unreachable;
     var totalCount = contents.len / (newline + 1);
 
     var part1Table = try allocator.alloc(usize, newline);
@@ -30,15 +30,14 @@ pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
         }
     }
 
-    var gamma: usize = 0;
+    var gamma: u12 = 0;
     ind = 1;
     for (part1Table) |t| {
         gamma <<= 1;
         gamma += @boolToInt((t * 2) >= totalCount);
     }
 
-    var epsilon = ((~gamma) & ((@as(usize, 1) << @truncate(u6, newline)) - 1));
-    var p1: usize = gamma * epsilon;
+    var p1: usize = @as(usize, gamma) * @as(usize, ~gamma);
 
     var oxygen = calculateChemical(.oxygen, newline, part2Table);
     var co2 = calculateChemical(.co2, newline, part2Table);

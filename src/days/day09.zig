@@ -47,7 +47,7 @@ pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
         var j: usize = 0;
         while (j < height) : (j += 1) {
             var val = contents[i + (width + 1) * j];
-            if (val - '0' == 9)
+            if (val == '9')
                 continue;
 
             var nextToBasin: ?usize = null;

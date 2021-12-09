@@ -77,7 +77,7 @@ fn part2(state: State) !usize {
         }
     }
 
-    return error.NoSolutionFound;
+    unreachable;
 }
 
 const State = struct {
@@ -137,9 +137,10 @@ fn loadState(contents: []u8, allocator: *std.mem.Allocator) !State {
     ind += 1;
 
     while (ind < contents.len) {
-        var board: Board = .{ .board = [_]u100{0} ** 10, .wonGame = false };
+
+        var board: Board = .{ .board = std.mem.zeroes([10]u100), .wonGame = false };
         var row: usize = 0;
-        var temp: [5][5]u100 = [_][5]u100{[_]u100{0} ** 5} ** 5;
+        var temp: [5][5]u100 = std.mem.zeroes([5][5]u100);
         while (row < 5) : (row += 1) {
             var cell: usize = 0;
             while (cell < 5) : (cell += 1) {

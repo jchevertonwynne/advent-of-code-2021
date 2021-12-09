@@ -7,7 +7,7 @@ pub fn run(contents: []u8, out: anytype) !i128 {
 
     var p1: usize = 0;
     var p2: usize = 0;
-    try solve2(contents, &p1, &p2);
+    try solve(contents, &p1, &p2);
 
     var duration = std.time.nanoTimestamp() - start;
 
@@ -16,7 +16,7 @@ pub fn run(contents: []u8, out: anytype) !i128 {
     return duration;
 }
 
-fn solve2(contents: []u8, p1: *usize, p2: *usize) !void {
+fn solve(contents: []u8, p1: *usize, p2: *usize) !void {
     var horizontal: usize = 0;
     var part1DepthPart2Aim: usize = 0;
     var part2Depth: usize = 0;
@@ -40,7 +40,7 @@ fn solve2(contents: []u8, p1: *usize, p2: *usize) !void {
                 part1DepthPart2Aim += distance;
                 ind += 7;
             },
-            else => return error.InvalidAction,
+            else => unreachable,
         }
     }
 

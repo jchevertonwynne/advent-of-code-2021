@@ -32,7 +32,7 @@ fn solve(fish: [9]usize, p1: *usize, p2: *usize) void {
 }
 
 fn loadFish(contents: []u8) [9]usize {
-    var fish = [_]usize{0} ** 9;
+    var fish = std.mem.zeroes([9]usize);
 
     var ind: usize = 0;
     while (ind < contents.len) {
@@ -45,7 +45,7 @@ fn loadFish(contents: []u8) [9]usize {
 
 fn createTable(comptime limit: usize) [7]usize {
     @setEvalBranchQuota(100_000);
-    var buckets = [_][7]usize{[7]usize{ 0, 0, 0, 0, 0, 0, 0 }} ** 9;
+    var buckets = std.mem.zeroes([9][9]usize);
     for (buckets[0..7]) |*m, i|
         m.*[i] = 1;
 
@@ -56,7 +56,7 @@ fn createTable(comptime limit: usize) [7]usize {
             b.* += buckets[8][i];
     }
 
-    var result = [_]usize{0} ** 7;
+    var result = std.mem.zeroes([7]usize);
     for (result) |*r, i| {
         for (buckets) |origins|
             r.* += origins[i];

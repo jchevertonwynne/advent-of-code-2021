@@ -43,7 +43,7 @@ fn part2(entries: []Entry) usize {
         var numbers: [10]?[]u8 = .{null} ** 10;
         var segments: [7]?u8 = .{null} ** 7;
 
-        var table: [7]usize = .{0} ** 7;
+        var table: [7]usize = std.mem.zeroes([7]usize);
         for (entry.patterns) |pattern| {
             for (pattern) |p| {
                 table[p] += 1;
@@ -140,7 +140,7 @@ fn part2(entries: []Entry) usize {
 }
 
 fn calculateNumber(comptime expectedSize: usize, segments: [7]?u8, expectedSegments: [expectedSize]usize, entryPatterns: [10][]u8) []u8 {
-    var buf: [expectedSize]u8 = .{0} ** expectedSize;
+    var buf: [expectedSize]u8 = undefined;
     for (expectedSegments) |exp, i| {
         buf[i] = segments[exp].?;
     }
