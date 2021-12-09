@@ -38,12 +38,12 @@ const patterns = [10]u7{ 0b1011111, 0b0000011, 0b1110110, 0b1110011, 0b0101011, 
 
 fn part2(entries: []Entry) usize {
     var result: usize = 0;
-    
-    for (entries) |entry| {
-        var numbers: [10]?[]u8 = .{ null } ** 10;
-        var segments: [7]?u8 = .{ null } ** 7;
 
-        var table: [7]usize = .{ 0 } ** 7;
+    for (entries) |entry| {
+        var numbers: [10]?[]u8 = .{null} ** 10;
+        var segments: [7]?u8 = .{null} ** 7;
+
+        var table: [7]usize = .{0} ** 7;
         for (entry.patterns) |pattern| {
             for (pattern) |p| {
                 table[p] += 1;
@@ -55,10 +55,10 @@ fn part2(entries: []Entry) usize {
         segments[4] = @truncate(u8, std.mem.indexOf(usize, &table, &[_]usize{4}) orelse unreachable);
         segments[6] = @truncate(u8, std.mem.indexOf(usize, &table, &[_]usize{9}) orelse unreachable);
 
-        // we know that numbers 1, 4, 7 and 8 have patterns uniquely of lengths 2, 4, 3 and 7 
+        // we know that numbers 1, 4, 7 and 8 have patterns uniquely of lengths 2, 4, 3 and 7
         const known = [_]usize{ 1, 4, 7, 8 };
-        const knownLengths = [_]usize{2, 4, 3, 7};
-        
+        const knownLengths = [_]usize{ 2, 4, 3, 7 };
+
         for (entry.patterns) |pattern| {
             inline for (known) |k, i| {
                 if (pattern.len == knownLengths[i]) {
@@ -115,12 +115,12 @@ fn part2(entries: []Entry) usize {
         segments[2] = @truncate(u8, std.mem.indexOf(usize, &table, &[_]usize{0}) orelse unreachable);
 
         // all segments are now know, calculate 0, 2, 3, 5, 6 and 9.
-        numbers[0] = calculateNumber(6, segments, [_]usize{0, 2, 3, 4, 5, 6}, entry.patterns);
-        numbers[2] = calculateNumber(5, segments, [_]usize{0, 1, 2, 4, 5}, entry.patterns);
-        numbers[3] = calculateNumber(5, segments, [_]usize{0, 1, 2, 5, 6}, entry.patterns);
-        numbers[5] = calculateNumber(5, segments, [_]usize{0, 1, 2, 3, 6}, entry.patterns);
-        numbers[6] = calculateNumber(6, segments, [_]usize{0, 1, 2, 3, 4, 6}, entry.patterns);
-        numbers[9] = calculateNumber(6, segments, [_]usize{0, 1, 2, 3, 5, 6}, entry.patterns);
+        numbers[0] = calculateNumber(6, segments, [_]usize{ 0, 2, 3, 4, 5, 6 }, entry.patterns);
+        numbers[2] = calculateNumber(5, segments, [_]usize{ 0, 1, 2, 4, 5 }, entry.patterns);
+        numbers[3] = calculateNumber(5, segments, [_]usize{ 0, 1, 2, 5, 6 }, entry.patterns);
+        numbers[5] = calculateNumber(5, segments, [_]usize{ 0, 1, 2, 3, 6 }, entry.patterns);
+        numbers[6] = calculateNumber(6, segments, [_]usize{ 0, 1, 2, 3, 4, 6 }, entry.patterns);
+        numbers[9] = calculateNumber(6, segments, [_]usize{ 0, 1, 2, 3, 5, 6 }, entry.patterns);
 
         // use this to calculate based on the outputs
         var number: usize = 0;
@@ -140,13 +140,13 @@ fn part2(entries: []Entry) usize {
 }
 
 fn calculateNumber(comptime expectedSize: usize, segments: [7]?u8, expectedSegments: [expectedSize]usize, entryPatterns: [10][]u8) []u8 {
-    var buf: [expectedSize]u8 = .{ 0 } ** expectedSize;
+    var buf: [expectedSize]u8 = .{0} ** expectedSize;
     for (expectedSegments) |exp, i| {
         buf[i] = segments[exp].?;
     }
 
     std.sort.sort(u8, &buf, {}, comptime std.sort.asc(u8));
-    
+
     for (entryPatterns) |pattern| {
         if (std.mem.eql(u8, pattern, &buf)) {
             return pattern;
@@ -154,7 +154,7 @@ fn calculateNumber(comptime expectedSize: usize, segments: [7]?u8, expectedSegme
     }
 
     unreachable;
-} 
+}
 
 const Entry = struct {
     patterns: [10][]u8,
