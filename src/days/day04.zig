@@ -137,7 +137,6 @@ fn loadState(contents: []u8, allocator: *std.mem.Allocator) !State {
     ind += 1;
 
     while (ind < contents.len) {
-
         var board: Board = .{ .board = std.mem.zeroes([10]u100), .wonGame = false };
         var row: usize = 0;
         var temp: [5][5]u100 = std.mem.zeroes([5][5]u100);

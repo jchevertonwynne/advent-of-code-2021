@@ -34,8 +34,6 @@ fn part1(entries: []Entry) usize {
     return result;
 }
 
-const patterns = [10]u7{ 0b1011111, 0b0000011, 0b1110110, 0b1110011, 0b0101011, 0b1111001, 0b1111101, 0b1000011, 0b1111111, 0b1111011 };
-
 fn part2(entries: []Entry) usize {
     var result: usize = 0;
 
@@ -85,34 +83,29 @@ fn part2(entries: []Entry) usize {
 
         segments[1] = @truncate(u8, std.mem.indexOf(usize, &table, &[_]usize{5}) orelse unreachable);
         segments[5] = @truncate(u8, std.mem.indexOf(usize, &table, &[_]usize{4}) orelse unreachable);
-        // set table undiscoverably high
-        table[segments[1].?] = 100;
-        table[segments[5].?] = 100;
 
         // 0 (1) 2 3 (4) 5 6 (7) (8) 9
         // 0 (1) 2 (3) (4) (5) (6)
 
         // diff between seven and one is the 0 segment
-        for (table) |*t|
-            t.* = 0;
+        var sevenSet = std.bit_set.IntegerBitSet(7).initEmpty();
         for (numbers[7].?) |n|
-            table[n] += 1;
+            sevenSet.set(n);
         for (numbers[1].?) |n|
-            table[n] -= 1;
-        segments[0] = @truncate(u8, std.mem.indexOf(usize, &table, &[_]usize{1}) orelse unreachable);
+            sevenSet.unset(n);
+        segments[0] = @truncate(u8, sevenSet.findFirstSet() orelse unreachable);
 
         // 0 (1) 2 3 (4) 5 6 (7) (8) 9
         // (0) (1) 2 (3) (4) (5) (6)
 
         // only segment 2 remains, just work out which it is
-        for (table) |*t|
-            t.* = 0;
+        var set = std.bit_set.IntegerBitSet(7).initFull();
         for (segments) |segment| {
             if (segment) |s| {
-                table[s] += 1;
+                set.unset(s);
             }
         }
-        segments[2] = @truncate(u8, std.mem.indexOf(usize, &table, &[_]usize{0}) orelse unreachable);
+        segments[2] = @truncate(u8, set.findFirstSet() orelse unreachable);
 
         // all segments are now know, calculate 0, 2, 3, 5, 6 and 9.
         numbers[0] = calculateNumber(6, segments, [_]usize{ 0, 2, 3, 4, 5, 6 }, entry.patterns);

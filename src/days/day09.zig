@@ -2,7 +2,7 @@ const std = @import("std");
 
 const util = @import("../util.zig");
 
-pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
+pub fn run(contents: []u8, out: anytype) !i128 {
     var start = std.time.nanoTimestamp();
 
     var width = std.mem.indexOf(u8, contents, "\n") orelse unreachable;
@@ -10,11 +10,16 @@ pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
 
     var p1: usize = 0;
 
+    var largest = std.mem.zeroes([4]usize);
+
     var i: usize = 0;
     while (i < width) : (i += 1) {
         var j: usize = 0;
         while (j < height) : (j += 1) {
             var val = contents[i + (width + 1) * j];
+            if (val == '9')
+                continue;
+
             var deepest = true;
 
             if (i > 0)
@@ -29,89 +34,38 @@ pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
             if (j + 1 < height)
                 deepest = deepest and contents[i + (width + 1) * (j + 1)] > val;
 
-            if (deepest)
+            if (deepest) {
                 p1 += 1 + val - '0';
-        }
-    }
-
-    // part 2
-
-    var table = try allocator.alloc(usize, width * height);
-    defer allocator.free(table);
-    for (table) |*t|
-        t.* = 0;
-    
-    var basinCount: usize = 0;
-    i = 0;
-    while (i < width) : (i += 1) {
-        var j: usize = 0;
-        while (j < height) : (j += 1) {
-            var val = contents[i + (width + 1) * j];
-            if (val == '9')
-                continue;
-
-            var nextToBasin: ?usize = null;
-            if (i > 0 and table[(i - 1) + width * j] != 0)
-                nextToBasin = table[(i - 1) + width * j];
-
-            if (j > 0 and table[i + width * (j - 1)] != 0)
-                nextToBasin = table[i + width * (j - 1)];
-            
-            if (nextToBasin) |nextTo| {
-                table[i + width * j] = nextTo;
-            } else {
-                basinCount += 1;
-                table[i + width * j] = basinCount;
+                largest[3] = floodFill(i, j, width, height, contents);
+                std.sort.sort(usize, &largest, {}, comptime std.sort.desc(usize));
             }
         }
     }
 
-    var changes = true;
-    while (changes) {
-        changes = false;
-        i = 0;
-        while (i < width) : (i += 1) {
-            var j: usize = 0;
-            while (j < height) : (j += 1) {
-                var lowest = table[i + width * j];
-                if (lowest == 0) 
-                    continue;
-
-                if (i > 0 and table[(i - 1) + width * j] != 0 and table[(i - 1) + width * j] < lowest)
-                    lowest = table[(i - 1) + width * j];
-
-                if (i + 1 < width and table[(i + 1) + width * j] != 0 and table[(i + 1) + width * j] < lowest)
-                    lowest = table[(i + 1) + width * j];
-
-                if (j > 0 and table[i + width * (j - 1)] != 0 and table[i + width * (j - 1)] < lowest)
-                    lowest = table[i + width * (j - 1)];
-
-                if (j + 1 < height and table[i + width * (j + 1)] != 0 and table[i + width * (j + 1)] < lowest)
-                    lowest = table[i + width * (j + 1)];
-
-                changes = changes or table[i + width * j] != lowest;
-                table[i + width * j] = lowest;
-            }
-        }
-    }
-
-    var counts = try allocator.alloc(usize, basinCount + 1);
-    defer allocator.free(counts);
-    for (counts) |*c|
-        c.* = 0;
-    for (table) |t| {
-        if (t == 0)
-            continue;
-        counts[t] += 1;
-    }
-
-    std.sort.sort(usize, counts, {}, comptime std.sort.desc(usize));
-
-    var p2: usize = counts[0] * counts[1] * counts[2];
+    var p2: usize = largest[0] * largest[1] * largest[2];
 
     var duration = std.time.nanoTimestamp() - start;
 
     try util.writeResponse(out, 9, p1, p2, duration);
 
     return duration;
+}
+
+fn floodFill(i: usize, j: usize, width: usize, height: usize, world: []u8) usize {
+    var filled: usize = 1;
+    world[i + (width + 1) * j] = '9';
+
+    if (i > 0 and world[(i - 1) + (width + 1) * j] != '9')
+        filled += floodFill(i - 1, j, width, height, world);
+
+    if (i + 1 < width and world[(i + 1) + (width + 1) * j] != '9')
+        filled += floodFill(i + 1, j, width, height, world);
+
+    if (j > 0 and world[i + (width + 1) * (j - 1)] != '9')
+        filled += floodFill(i, j - 1, width, height, world);
+
+    if (j + 1 < height and world[i + (width + 1) * (j + 1)] != '9')
+        filled += floodFill(i, j + 1, width, height, world);
+
+    return filled;
 }
