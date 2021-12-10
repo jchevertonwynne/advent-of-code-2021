@@ -26,7 +26,7 @@ fn solve(contents: []u8, p1: *usize, p2: *usize) !void {
     while (ind < contents.len) {
         var start = ind;
         var pos = ind;
-        var legal = true;
+        var incomplete = true;
         while (contents[ind] != '\n') {
             switch (contents[ind]) {
                 '(', '{', '[', '<' => {
@@ -44,7 +44,7 @@ fn solve(contents: []u8, p1: *usize, p2: *usize) !void {
                     if (contents[pos - 1] == paired) {
                         pos -= 1;
                     } else {
-                        legal = false;
+                        incomplete = false;
 
                         p1.* += @as(usize, switch (contents[ind]) {
                             ')' => 3,
@@ -66,7 +66,7 @@ fn solve(contents: []u8, p1: *usize, p2: *usize) !void {
 
         ind += 1;
 
-        if (legal) {
+        if (incomplete) {
             var end = pos;
             var score: usize = 0;
             while (end > start) : (end -= 1) {
