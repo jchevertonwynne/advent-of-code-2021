@@ -43,7 +43,7 @@ pub fn main() !void {
     duration += try day06.run(contents.day06, &writer);
     duration += try day07.run(contents.day07, &writer, allocator);
     duration += try day08.run(contents.day08, &writer, allocator);
-    duration += try day09.run(contents.day09, &writer, allocator);
+    duration += try day09.run(contents.day09, &writer);
     duration += try day10.run(contents.day10, &writer, allocator);
 
     try writer.print("aoc ran in:\n", .{});
