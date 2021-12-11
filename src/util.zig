@@ -129,6 +129,7 @@ pub const Contents = struct {
     day08: []u8,
     day09: []u8,
     day10: []u8,
+    day11: []u8,
 
     pub fn load(allocator: *std.mem.Allocator) !Self {
         var dir = std.fs.cwd();
@@ -152,6 +153,8 @@ pub const Contents = struct {
         errdefer allocator.free(day09String);
         var day10String = try dir.readFileAlloc(allocator, "files/10.txt", std.math.maxInt(usize));
         errdefer allocator.free(day10String);
+        var day11String = try dir.readFileAlloc(allocator, "files/11.txt", std.math.maxInt(usize));
+        errdefer allocator.free(day11String);
 
         return Self{
             .allocator = allocator,
@@ -165,6 +168,7 @@ pub const Contents = struct {
             .day08 = day08String,
             .day09 = day09String,
             .day10 = day10String,
+            .day11 = day11String,
         };
     }
 
@@ -179,6 +183,7 @@ pub const Contents = struct {
         self.allocator.free(self.day08);
         self.allocator.free(self.day09);
         self.allocator.free(self.day10);
+        self.allocator.free(self.day11);
     }
 };
 
