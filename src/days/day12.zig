@@ -13,8 +13,8 @@ pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
         caves.deinit();
     }
 
-    var p1: usize = try part1(caves, allocator);
-    var p2: usize = try part2(caves, allocator);
+    var p1: usize = try part1(caves);
+    var p2: usize = try part2(caves);
 
     var duration = std.time.nanoTimestamp() - start;
 
@@ -23,25 +23,23 @@ pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
     return duration;
 }
 
-fn part1(caves: std.StringHashMap(std.ArrayList([]const u8)), allocator: *std.mem.Allocator) !usize {
+fn part1(caves: std.StringHashMap(std.ArrayList([]const u8))) !usize {
     var start = "start";
-    var history = std.ArrayList([]const u8).init(allocator);
-    defer history.deinit();
+    var history = std.mem.zeroes([2704]bool);
 
-    return try explore(.part1, start, &history, false, caves);
+    return try explore(.part1, start, &history, null, caves);
 }
 
-fn part2(caves: std.StringHashMap(std.ArrayList([]const u8)), allocator: *std.mem.Allocator) !usize {
+fn part2(caves: std.StringHashMap(std.ArrayList([]const u8))) !usize {
     var start = "start";
-    var history = std.ArrayList([]const u8).init(allocator);
-    defer history.deinit();
+    var history = std.mem.zeroes([2704]bool);
 
-    return try explore(.part2, start, &history, false, caves);
+    return try explore(.part2, start, &history, null, caves);
 }
 
 const Part = enum { part1, part2 };
 
-fn explore(comptime part: Part, current: []const u8, history: *std.ArrayList([]const u8), _doubleVisited: bool, caves: std.StringHashMap(std.ArrayList([]const u8))) anyerror!usize {
+fn explore(comptime part: Part, current: []const u8, history: *[2704]bool, _doubleVisited: ?[]const u8, caves: std.StringHashMap(std.ArrayList([]const u8))) anyerror!usize {
     var res: usize = 0;
 
     for ((caves.get(current) orelse unreachable).items) |option| {
@@ -57,21 +55,17 @@ fn explore(comptime part: Part, current: []const u8, history: *std.ArrayList([]c
 
         var legal = switch (part) {
             .part1 => if (isSmallCave(option)) block: {
-                for (history.items) |h| {
-                    if (std.mem.eql(u8, h, option))
-                        break :block false;
-                }
+                if (history[caveToIndex(option)])
+                    break :block false;
 
                 break :block true;
             } else true,
             .part2 => if (isSmallCave(option)) block: {
-                for (history.items) |h| {
-                    if (std.mem.eql(u8, h, option)) {
-                        if (doubleVisited) {
-                            break :block false;
-                        } else {
-                            doubleVisited = true;
-                        }
+                if (history[caveToIndex(option)]) {
+                    if (doubleVisited) |_| {
+                        break :block false;
+                    } else {
+                        doubleVisited = option;
                     }
                 }
 
@@ -80,23 +74,31 @@ fn explore(comptime part: Part, current: []const u8, history: *std.ArrayList([]c
         };
 
         if (legal) {
-            try history.append(current);
+            history[caveToIndex(current)] = true;
             res += try explore(part, option, history, doubleVisited, caves);
         }
     }
 
-    _ = history.popOrNull();
+    if (_doubleVisited) |d| {
+        if (!std.mem.eql(u8, current, d))
+         history[caveToIndex(current)] = false;
+    }
+    else {
+        history[caveToIndex(current)] = false;
+    }
 
     return res;
 }
 
-fn isSmallCave(cave: []const u8) bool {
-    for (cave) |c| {
-        if (c < 'a' or c > 'z')
-            return false;
-    }
+fn caveToIndex(cave: []const u8) usize {
+    return if (isSmallCave(cave))
+        @as(usize, cave[0] - 'a') * 52 + cave[1]
+    else
+        @as(usize, cave[0] - 'A') * 52 + cave[1];
+}
 
-    return true;
+fn isSmallCave(cave: []const u8) bool {
+    return 'a' <= cave[0] and cave[0] <= 'z';
 }
 
 fn loadCaves(contents: []u8, allocator: *std.mem.Allocator) !std.StringHashMap(std.ArrayList([]const u8)) {
