@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 
 const util = @import("../util.zig");
 
@@ -17,96 +18,122 @@ pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
 }
 
 fn solve(contents: []u8, allocator: *std.mem.Allocator, p1: *usize, p2: *usize) !void {
-    var p1Sols = std.AutoHashMap(Point, usize).init(allocator);
-    defer p1Sols.deinit();
-    var p2Sols = std.AutoHashMap(Point, usize).init(allocator);
-    defer p2Sols.deinit();
+    var lines = std.ArrayList(Line).init(allocator);
+    defer lines.deinit();
 
     var ind: usize = 0;
     while (ind < contents.len) {
         var line: Line = undefined;
         var size: usize = undefined;
-        util.toUint(u16, contents[ind..], &line.start.x, &size);
+        util.toInt(i32, contents[ind..], &line.start.x, &size);
         ind += size + 1;
-        util.toUint(u16, contents[ind..], &line.start.y, &size);
+        util.toInt(i32, contents[ind..], &line.start.y, &size);
         ind += size + 4;
-        util.toUint(u16, contents[ind..], &line.end.x, &size);
+        util.toInt(i32, contents[ind..], &line.end.x, &size);
         ind += size + 1;
-        util.toUint(u16, contents[ind..], &line.end.y, &size);
+        util.toInt(i32, contents[ind..], &line.end.y, &size);
         ind += size + 1;
 
-        if (line.start.x == line.end.x) {
-            var y = std.math.min(line.start.y, line.end.y);
-            var yLimit = std.math.max(line.start.y, line.end.y);
+        if (line.start.x > line.end.x)
+            std.mem.swap(Point, &line.start, &line.end);
 
-            while (y <= yLimit) : (y += 1) {
-                var entry1 = try p1Sols.getOrPut(Point{ .x = line.start.x, .y = y });
-                if (!entry1.found_existing)
-                    entry1.value_ptr.* = 0;
-                entry1.value_ptr.* += 1;
-                var entry2 = try p2Sols.getOrPut(Point{ .x = line.start.x, .y = y });
-                if (!entry2.found_existing)
-                    entry2.value_ptr.* = 0;
-                entry2.value_ptr.* += 1;
-            }
-        } else if (line.start.y == line.end.y) {
-            var x = std.math.min(line.start.x, line.end.x);
-            var xLimit = std.math.max(line.start.x, line.end.x);
+        try lines.append(line);
+    }
 
-            while (x <= xLimit) : (x += 1) {
-                var entry1 = try p1Sols.getOrPut(Point{ .x = x, .y = line.start.y });
-                if (!entry1.found_existing)
-                    entry1.value_ptr.* = 0;
-                entry1.value_ptr.* += 1;
-                var entry2 = try p2Sols.getOrPut(Point{ .x = x, .y = line.start.y });
-                if (!entry2.found_existing)
-                    entry2.value_ptr.* = 0;
-                entry2.value_ptr.* += 1;
-            }
-        } else {
-            var incX = line.start.x < line.end.x;
-            var incY = line.start.y < line.end.y;
+    var intersections1 = util.HashSet(Point).init(allocator);
+    defer intersections1.deinit();
+    var intersections2 = util.HashSet(Point).init(allocator);
+    defer intersections2.deinit();
 
-            if (incX == incY) {
-                var x = std.math.min(line.start.x, line.end.x);
-                var xLimit = std.math.max(line.start.x, line.end.x);
-                var y = std.math.min(line.start.y, line.end.y);
-
-                while (x <= xLimit) {
-                    var entry = try p2Sols.getOrPut(Point{ .x = x, .y = y });
-                    if (!entry.found_existing)
-                        entry.value_ptr.* = 0;
-                    entry.value_ptr.* += 1;
-                    x += 1;
-                    y += 1;
-                }
-            } else {
-                var x = std.math.min(line.start.x, line.end.x);
-                var xLimit = std.math.max(line.start.x, line.end.x);
-                var y = std.math.max(line.start.y, line.end.y);
-
-                while (x <= xLimit) {
-                    var entry = try p2Sols.getOrPut(Point{ .x = x, .y = y });
-                    if (!entry.found_existing)
-                        entry.value_ptr.* = 0;
-                    entry.value_ptr.* += 1;
-                    x += 1;
-                    y -%= 1;
+    for (lines.items) |line, i| {
+        for (lines.items[0..i]) |other| {
+            var lineFlat = line.start.x == line.end.x or line.start.y == line.end.y;
+            var otherFlat = other.start.x == other.end.x or other.start.y == other.end.y;
+            if (Line.findIntersection(line, other)) |intersection| {
+                var traverse = intersection.traverse();
+                // std.debug.print("({},{}) => ({},{}) intersects ({},{}) => ({},{})\n", .{line.start.x, line.start.y, line.end.x, line.end.y, other.start.x, other.start.y, other.end.x, other.end.y});
+                while (traverse.next()) |point| {
+                    try intersections2.insert(point);
+                    if (lineFlat and otherFlat)
+                        try intersections1.insert(point);
                 }
             }
         }
     }
 
-    p1.* = 0;
-    var it1 = p1Sols.valueIterator();
-    while (it1.next()) |val|
-        p1.* += @boolToInt(val.* > 1);
-    p2.* = 0;
-    var it2 = p2Sols.valueIterator();
-    while (it2.next()) |val|
-        p2.* += @boolToInt(val.* > 1);
+    p1.* = intersections1.count();
+    p2.* = intersections2.count();
 }
 
-const Line = struct { start: Point, end: Point };
+const LineTraverser = struct {
+    line: Line,
+    dx: i32,
+    dy: i32,
+    first: bool,
 
-const Point = struct { x: u16, y: u16 };
+    fn new(from: Line) LineTraverser {
+        var dy: i32 = 0;
+        if (from.start.y < from.end.y)
+            dy = 1;
+        if (from.start.y > from.end.y)
+            dy = -1;
+        return .{ .line = from, .dx = @boolToInt(from.start.x < from.end.x), .dy = dy, .first = true };
+    }
+
+    fn next(self: *@This()) ?Point {
+        if (self.first) {
+            self.first = false;
+            return self.line.start;
+        }
+
+        if (Point.equal(self.line.start, self.line.end))
+            return null;
+
+        self.line.start.x += self.dx;
+        self.line.start.y += self.dy;
+
+        return self.line.start;
+    }
+};
+
+const Line = struct {
+    start: Point,
+    end: Point,
+
+    fn from(x1: i32, y1: i32, x2: i32, y2: i32) @This() {
+        return .{ .start = .{ .x = x1, .y = y1 }, .end = .{ .x = x2, .y = y2 } };
+    }
+
+    fn traverse(self: @This()) LineTraverser {
+        return LineTraverser.new(self);
+    }
+
+    fn findIntersection(a: Line, b: Line) ?Line {
+        var aFlat = a.start.y == a.end.y;
+        var aVert = a.start.x == a.end.x;
+
+        var bFlat = b.start.y == b.end.y;
+        var bVert = b.start.x == b.end.x;
+
+        if ((aFlat or aVert) and (bFlat or bVert)) {
+            if (a.start.x > b.end.x or b.start.x > a.end.x or a.start.y > b.end.y or b.start.y > a.end.y)
+                return null;
+
+            return Line{ .start = Point{
+                .x = std.math.max(a.start.x, b.start.x),
+                .y = std.math.max(a.start.y, b.start.y),
+            }, .end = Point{ .x = std.math.min(a.end.x, b.end.x), .y = std.math.min(a.end.y, b.end.y) } };
+        }
+
+        return null;
+    }
+};
+
+const Point = struct {
+    x: i32,
+    y: i32,
+
+    fn equal(a: Point, b: Point) bool {
+        return a.x == b.x and a.y == b.y;
+    }
+};
