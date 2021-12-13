@@ -16,6 +16,7 @@ pub const Contents = struct {
     day10: []u8,
     day11: []u8,
     day12: []u8,
+    day13: []u8,
 
     pub fn load(allocator: *std.mem.Allocator) !Self {
         var dir = std.fs.cwd();
@@ -43,6 +44,8 @@ pub const Contents = struct {
         errdefer allocator.free(day11String);
         var day12String = try dir.readFileAlloc(allocator, "files/12.txt", std.math.maxInt(usize));
         errdefer allocator.free(day12String);
+        var day13String = try dir.readFileAlloc(allocator, "files/13.txt", std.math.maxInt(usize));
+        errdefer allocator.free(day13String);
 
         return Self{
             .allocator = allocator,
@@ -58,6 +61,7 @@ pub const Contents = struct {
             .day10 = day10String,
             .day11 = day11String,
             .day12 = day12String,
+            .day13 = day13String,
         };
     }
 
@@ -74,6 +78,7 @@ pub const Contents = struct {
         self.allocator.free(self.day10);
         self.allocator.free(self.day11);
         self.allocator.free(self.day12);
+        self.allocator.free(self.day13);
     }
 };
 
@@ -127,7 +132,13 @@ pub fn HashSet(comptime T: type) type {
 pub fn writeResponse(out: anytype, comptime day: usize, part1: anytype, part2: anytype, duration: i128) !void {
     try out.print("problem {}:\n", .{day});
     try out.print("\tpart 1:\t{}\n", .{part1});
-    try out.print("\tpart 2:\t{}\n", .{part2});
+    if (@TypeOf(part2) == [6][40]u8) {
+        try out.print("\tpart 2: {s}\n", .{part2[0]});
+        for (part2[1..]) |row| 
+            try out.print("\t\t{s}\n", .{row});
+    } else {
+        try out.print("\tpart 2:\t{}\n", .{part2});
+    }
     if (duration < 1000) {
         try out.print("\ttime:\t{d}ns\n\n", .{duration});
     } else if (duration < 1_000_000) {
