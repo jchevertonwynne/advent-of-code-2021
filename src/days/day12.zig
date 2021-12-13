@@ -6,7 +6,7 @@ pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
     var start = std.time.nanoTimestamp();
 
     var caves = try loadCaves(contents, allocator);
-    errdefer {
+    defer {
         for (caves) |*c|
             c.deinit();
     }
@@ -23,21 +23,21 @@ pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
 
 fn part1(caves: [2706]std.ArrayList([]const u8)) !usize {
     var start = "start";
-    var history = std.mem.zeroes([2704]bool);
+    var history = std.mem.zeroes([2706]bool);
 
-    return try explore(.part1, start, &history, null, caves);
+    return explore(.part1, start, &history, null, caves);
 }
 
 fn part2(caves: [2706]std.ArrayList([]const u8)) !usize {
     var start = "start";
-    var history = std.mem.zeroes([2704]bool);
+    var history = std.mem.zeroes([2706]bool);
 
-    return try explore(.part2, start, &history, null, caves);
+    return explore(.part2, start, &history, null, caves);
 }
 
 const Part = enum { part1, part2 };
 
-fn explore(comptime part: Part, current: []const u8, history: *[2704]bool, _doubleVisited: ?[]const u8, caves: [2706]std.ArrayList([]const u8)) anyerror!usize {
+fn explore(comptime part: Part, current: []const u8, history: *[2706]bool, _doubleVisited: ?[]const u8, caves: [2706]std.ArrayList([]const u8)) usize {
     var res: usize = 0;
 
     for (caves[caveToIndex(current)].items) |option| {
@@ -51,29 +51,21 @@ fn explore(comptime part: Part, current: []const u8, history: *[2704]bool, _doub
 
         var doubleVisited = _doubleVisited;
 
-        var legal = switch (part) {
-            .part1 => if (isSmallCave(option)) block: {
-                if (history[caveToIndex(option)])
-                    break :block false;
-
-                break :block true;
-            } else true,
-            .part2 => if (isSmallCave(option)) block: {
-                if (history[caveToIndex(option)]) {
-                    if (doubleVisited) |_| {
-                        break :block false;
-                    } else {
+        var legal = if (isSmallCave(option)) block: {
+            if (history[caveToIndex(option)]) {
+                break :block switch (part) {
+                    .part1 => false,
+                    .part2 => if (doubleVisited) |_| false else block2: {
                         doubleVisited = option;
-                    }
-                }
-
-                break :block true;
-            } else true,
-        };
+                        break :block2 true;
+                    },
+                };
+            } else break :block true;
+        } else true;
 
         if (legal) {
             history[caveToIndex(current)] = true;
-            res += try explore(part, option, history, doubleVisited, caves);
+            res += explore(part, option, history, doubleVisited, caves);
         }
     }
 
@@ -93,9 +85,9 @@ fn caveToIndex(cave: []const u8) usize {
     if (std.mem.eql(u8, cave, "end"))
         return 2705;
     return if (isSmallCave(cave))
-        @as(usize, cave[0] - 'a') * 52 + cave[1]
+        @as(usize, cave[0] - 'a') * 52 + cave[1] - 'a'
     else
-        @as(usize, cave[0] - 'A') * 52 + cave[1];
+        @as(usize, cave[0] - 'A') * 52 + cave[1] - 'A';
 }
 
 fn isSmallCave(cave: []const u8) bool {
