@@ -3,38 +3,15 @@ const builtin = @import("builtin");
 
 const util = @import("../util.zig");
 
-const min = std.math.min;
-const max = std.math.max;
-
-fn max4(a: anytype, b: anytype, c: anytype, d: anytype) @TypeOf(a, b, c, d) {
-    return max(max(a, b), max(c, d));
-}
-
-fn min4(a: anytype, b: anytype, c: anytype, d: anytype) @TypeOf(a, b, c, d) {
-    return min(min(a, b), min(c, d));
-}
-
 pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
     var start = std.time.nanoTimestamp();
 
-    _ = allocator;
-    _ = contents;
-
-    // var a = Line.from(10, 0, 0, 10);
-    // var b = Line.from(8, 2, 2, 8);
-    // if (Line.findIntersection(a, b)) |intersection| {
-    //     std.debug.print("found intersection along {}\n", .{intersection});
-    //     var t = intersection.traverse();
-    //     while (t.next()) |p|
-    //         std.debug.print("{}\n", .{p});
-    //     @panic("be done pls");
-    // } else {
-    //     @panic("no intersection found");
-    // }
+    var lines = try loadLines(contents, allocator);
+    defer allocator.free(lines);
 
     var p1: usize = 0;
     var p2: usize = 0;
-    // try solve(contents, allocator, &p1, &p2);
+    try solve(lines, allocator, &p1, &p2);
 
     var duration = std.time.nanoTimestamp() - start;
 
@@ -43,9 +20,9 @@ pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
     return duration;
 }
 
-fn solve(contents: []u8, allocator: *std.mem.Allocator, p1: *usize, p2: *usize) !void {
+fn loadLines(contents: []u8, allocator: *std.mem.Allocator) ![]Line {
     var lines = std.ArrayList(Line).init(allocator);
-    defer lines.deinit();
+    errdefer lines.deinit();
 
     var ind: usize = 0;
     while (ind < contents.len) {
@@ -60,25 +37,26 @@ fn solve(contents: []u8, allocator: *std.mem.Allocator, p1: *usize, p2: *usize) 
         util.toInt(i32, contents[ind..], &line.end.y, &size);
         ind += size + 1;
 
-        if (line.start.x > line.end.x) {
+        if (line.start.x > line.end.x)
             std.mem.swap(Point, &line.start, &line.end);
-        }
 
         try lines.append(line);
     }
 
+    return lines.toOwnedSlice();
+}
+
+fn solve(lines: []Line, allocator: *std.mem.Allocator, p1: *usize, p2: *usize) !void {
     var intersections1 = util.HashSet(Point).init(allocator);
     defer intersections1.deinit();
     var intersections2 = util.HashSet(Point).init(allocator);
     defer intersections2.deinit();
 
-    for (lines.items) |line, i| {
-        for (lines.items[0..i]) |other| {
+    for (lines) |line, i| {
+        for (lines[0..i]) |other| {
             var lineFlat = line.start.x == line.end.x or line.start.y == line.end.y;
             var otherFlat = other.start.x == other.end.x or other.start.y == other.end.y;
             if (Line.findIntersection(line, other)) |intersection| {
-                // std.debug.print("{}\n{}\n", .{line, other});
-                // std.debug.print("{}\n", .{intersection});
                 var traverse = intersection.traverse();
                 while (traverse.next()) |point| {
                     try intersections2.insert(point);
@@ -129,6 +107,9 @@ const LineTraverser = struct {
     }
 };
 
+const min = std.math.min;
+const max = std.math.max;
+
 const Line = struct {
     start: Point,
     end: Point,
@@ -153,26 +134,38 @@ const Line = struct {
             std.mem.swap(i32, &adx, &bdx);
         }
 
+        var minAX = min(a.start.x, a.end.x);
+        var maxAX = max(a.start.x, a.end.x);
+        var minAY = min(a.start.y, a.end.y);
+        var maxAY = max(a.start.y, a.end.y);
+
+        var minBX = min(b.start.x, b.end.x);
+        var maxBX = max(b.start.x, b.end.x);
+        var minBY = min(b.start.y, b.end.y);
+        var maxBY = max(b.start.y, b.end.y);
+
         if (adx == 0) { // a is vertical
             if (bdx == 0) { // b is vertical
                 if (a.start.x != b.start.x) // check if on same x
                     return null;
-                var aLen = std.math.absInt(a.end.y - a.start.y) catch unreachable;
-                var bLen = std.math.absInt(b.end.y - b.start.y) catch unreachable;
+                var aLen = maxAY - minAY;
+                var bLen = maxBY - minBY;
                 var potLen = max4(a.start.y, a.end.y, b.start.y, b.end.y) - min4(a.start.y, a.end.y, b.start.y, b.end.y);
                 if (aLen + bLen <= potLen) // check if within range of each other - total segment lengths should not exceed the potential combined
                     return null;
-                var botY = max(min(a.start.y, a.end.y), min(b.start.y, b.end.y));
-                var topY = min(max(a.start.y, a.end.y), max(b.start.y, b.end.y));
+                var botY = max(minAY, minBY);
+                var topY = min(maxAY, maxBY);
                 return Line{ .start = Point{ .x = a.start.x, .y = botY }, .end = Point{ .x = a.start.x, .y = topY } };
             }
             // b is not vertical
+            if (a.start.x < minBX or a.start.x > maxBX) // check if lines are within range
+                return null;
             var bdy = b.end.y - b.start.y;
             var bdydx = @divFloor(bdy, bdx);
             var bIntersect = b.start.y - (b.start.x * bdydx); // where b crosses x=0
             var actualY = bdydx * a.start.x + bIntersect; // y at which b crosses a
             // check if intersect is within a
-            if (actualY < min(a.start.y, a.end.y) or actualY > max(a.start.y, a.end.y))
+            if (actualY < minAY or actualY > maxAY)
                 return null;
             return return Line{ .start = Point{ .x = a.start.x, .y = actualY }, .end = Point{ .x = a.start.x, .y = actualY } };
         }
@@ -198,40 +191,39 @@ const Line = struct {
                 return null;
 
             if (adydx == -1) { // negative diag
-                var xStart = max(min(a.start.x, a.end.x), min(b.start.x, b.end.x));
-                var yStart = min(max(a.start.y, a.end.y), max(b.start.y, b.end.y));
-                var xEnd = min(max(a.start.x, a.end.x), max(b.start.x, b.end.x));
-                var yEnd = max(min(a.start.y, a.end.y), min(b.start.y, b.end.y));
+                var xStart = max(minAX, minBX);
+                var yStart = min(maxAY, maxBY);
+                var xEnd = min(maxAX, maxBX);
+                var yEnd = max(minAY, minBY);
                 return Line{ .start = Point{ .x = xStart, .y = yStart }, .end = Point{ .x = xEnd, .y = yEnd } };
             }
 
             // else pos diag or horizontal
-            var xStart = max(min(a.start.x, a.end.x), min(b.start.x, b.end.x));
-            var yStart = max(min(a.start.y, a.end.y), min(b.start.y, b.end.y));
-            var xEnd = min(max(a.start.x, a.end.x), max(b.start.x, b.end.x));
-            var yEnd = min(max(a.start.y, a.end.y), max(b.start.y, b.end.y));
+            var xStart = max(minAX, minBX);
+            var yStart = max(minAY, minBY);
+            var xEnd = min(maxAX, maxBX);
+            var yEnd = min(maxAY, maxBY);
             return Line{ .start = Point{ .x = xStart, .y = yStart }, .end = Point{ .x = xEnd, .y = yEnd } };
         }
 
         // calculate x intersection of the lines and check if in range for both
-        if (@mod(aIntersect - bIntersect, bdydx - adydx) != 0) // if not an int position
-            return null;
-
         var xIntersect = @divFloor(aIntersect - bIntersect, bdydx - adydx);
+        if (xIntersect * (bdydx - adydx) != (aIntersect - bIntersect)) // if not an int position
+            return null;
 
         // check if in range
-        if (xIntersect < min(a.start.x, a.end.x) or xIntersect > max(a.start.x, a.end.x))
+        if (xIntersect < minAX or xIntersect > maxAX)
             return null;
 
-        if (xIntersect < min(b.start.x, b.end.x) or xIntersect > max(b.start.x, b.end.x))
+        if (xIntersect < minBX or xIntersect > maxBX)
             return null;
 
         var yIntersect = adydx * xIntersect + aIntersect;
 
-        if (yIntersect < min(a.start.y, a.end.y) or yIntersect > max(a.start.y, a.end.y))
+        if (yIntersect < minAY or yIntersect > maxAY)
             return null;
 
-        if (yIntersect < min(b.start.y, b.end.y) or yIntersect > max(b.start.y, b.end.y))
+        if (yIntersect < minBY or yIntersect > maxBY)
             return null;
 
         return Line{ .start = Point{ .x = xIntersect, .y = yIntersect }, .end = Point{ .x = xIntersect, .y = yIntersect } };
@@ -254,3 +246,11 @@ const Point = struct {
         return a.x < b.x or a.y < b.y;
     }
 };
+
+fn max4(a: anytype, b: anytype, c: anytype, d: anytype) @TypeOf(a, b, c, d) {
+    return max(max(a, b), max(c, d));
+}
+
+fn min4(a: anytype, b: anytype, c: anytype, d: anytype) @TypeOf(a, b, c, d) {
+    return min(min(a, b), min(c, d));
+}
