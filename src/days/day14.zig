@@ -41,11 +41,10 @@ fn solve(polymers: Polymers, allocator: *std.mem.Allocator, p1: *usize, p2: *usi
 }
 
 fn findScore(baseString: []u8, currentPolymer: std.AutoHashMap([2]u8, usize)) usize {
-    var table = std.mem.zeroes([26]usize); 
+    var table = std.mem.zeroes([26]usize);
     var it = currentPolymer.iterator();
-    while (it.next()) |entry| {
+    while (it.next()) |entry|
         table[entry.key_ptr[1] - 'A'] += entry.value_ptr.*;
-    }
     table[baseString[0] - 'A'] += 1;
     std.sort.sort(usize, &table, {}, comptime std.sort.asc(usize));
     var smallest: usize = 0;
