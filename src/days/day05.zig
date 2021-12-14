@@ -109,7 +109,6 @@ const LineTraverser = struct {
 
 const min = std.math.min;
 const max = std.math.max;
-const abs = std.math.absInt;
 
 const Line = struct {
     start: Point,
@@ -135,28 +134,38 @@ const Line = struct {
             std.mem.swap(i32, &adx, &bdx);
         }
 
+        var minAX = min(a.start.x, a.end.x);
+        var maxAX = max(a.start.x, a.end.x);
+        var minAY = min(a.start.y, a.end.y);
+        var maxAY = max(a.start.y, a.end.y);
+
+        var minBX = min(b.start.x, b.end.x);
+        var maxBX = max(b.start.x, b.end.x);
+        var minBY = min(b.start.y, b.end.y);
+        var maxBY = max(b.start.y, b.end.y);
+
         if (adx == 0) { // a is vertical
             if (bdx == 0) { // b is vertical
                 if (a.start.x != b.start.x) // check if on same x
                     return null;
-                var aLen = abs(a.end.y - a.start.y) catch unreachable;
-                var bLen = abs(b.end.y - b.start.y) catch unreachable;
+                var aLen = maxAY - minAY;
+                var bLen = maxBY - minBY;
                 var potLen = max4(a.start.y, a.end.y, b.start.y, b.end.y) - min4(a.start.y, a.end.y, b.start.y, b.end.y);
                 if (aLen + bLen <= potLen) // check if within range of each other - total segment lengths should not exceed the potential combined
                     return null;
-                var botY = max(min(a.start.y, a.end.y), min(b.start.y, b.end.y));
-                var topY = min(max(a.start.y, a.end.y), max(b.start.y, b.end.y));
+                var botY = max(minAY, minBY);
+                var topY = min(maxAY, maxBY);
                 return Line{ .start = Point{ .x = a.start.x, .y = botY }, .end = Point{ .x = a.start.x, .y = topY } };
             }
             // b is not vertical
-            if (a.start.x < min(b.start.x, b.end.x) or a.start.x > max(b.start.x, b.end.x)) // check if lines are within range
+            if (a.start.x < minBX or a.start.x > maxBX) // check if lines are within range
                 return null;
             var bdy = b.end.y - b.start.y;
             var bdydx = @divFloor(bdy, bdx);
             var bIntersect = b.start.y - (b.start.x * bdydx); // where b crosses x=0
             var actualY = bdydx * a.start.x + bIntersect; // y at which b crosses a
             // check if intersect is within a
-            if (actualY < min(a.start.y, a.end.y) or actualY > max(a.start.y, a.end.y))
+            if (actualY < minAY or actualY > maxAY)
                 return null;
             return return Line{ .start = Point{ .x = a.start.x, .y = actualY }, .end = Point{ .x = a.start.x, .y = actualY } };
         }
@@ -182,18 +191,18 @@ const Line = struct {
                 return null;
 
             if (adydx == -1) { // negative diag
-                var xStart = max(min(a.start.x, a.end.x), min(b.start.x, b.end.x));
-                var yStart = min(max(a.start.y, a.end.y), max(b.start.y, b.end.y));
-                var xEnd = min(max(a.start.x, a.end.x), max(b.start.x, b.end.x));
-                var yEnd = max(min(a.start.y, a.end.y), min(b.start.y, b.end.y));
+                var xStart = max(minAX, minBX);
+                var yStart = min(maxAY, maxBY);
+                var xEnd = min(maxAX, maxBX);
+                var yEnd = max(minAY, minBY);
                 return Line{ .start = Point{ .x = xStart, .y = yStart }, .end = Point{ .x = xEnd, .y = yEnd } };
             }
 
             // else pos diag or horizontal
-            var xStart = max(min(a.start.x, a.end.x), min(b.start.x, b.end.x));
-            var yStart = max(min(a.start.y, a.end.y), min(b.start.y, b.end.y));
-            var xEnd = min(max(a.start.x, a.end.x), max(b.start.x, b.end.x));
-            var yEnd = min(max(a.start.y, a.end.y), max(b.start.y, b.end.y));
+            var xStart = max(minAX, minBX);
+            var yStart = max(minAY, minBY);
+            var xEnd = min(maxAX, maxBX);
+            var yEnd = min(maxAY, maxBY);
             return Line{ .start = Point{ .x = xStart, .y = yStart }, .end = Point{ .x = xEnd, .y = yEnd } };
         }
 
@@ -203,18 +212,18 @@ const Line = struct {
             return null;
 
         // check if in range
-        if (xIntersect < min(a.start.x, a.end.x) or xIntersect > max(a.start.x, a.end.x))
+        if (xIntersect < minAX or xIntersect > maxAX)
             return null;
 
-        if (xIntersect < min(b.start.x, b.end.x) or xIntersect > max(b.start.x, b.end.x))
+        if (xIntersect < minBX or xIntersect > maxBX)
             return null;
 
         var yIntersect = adydx * xIntersect + aIntersect;
 
-        if (yIntersect < min(a.start.y, a.end.y) or yIntersect > max(a.start.y, a.end.y))
+        if (yIntersect < minAY or yIntersect > maxAY)
             return null;
 
-        if (yIntersect < min(b.start.y, b.end.y) or yIntersect > max(b.start.y, b.end.y))
+        if (yIntersect < minBY or yIntersect > maxBY)
             return null;
 
         return Line{ .start = Point{ .x = xIntersect, .y = yIntersect }, .end = Point{ .x = xIntersect, .y = yIntersect } };
