@@ -48,7 +48,7 @@ fn solve(instructions: Instructions, allocator: *std.mem.Allocator, p1: *usize, 
                     } else {
                         try newDots.insert(dot.*);
                     }
-                }
+                },
             }
         }
 
@@ -56,7 +56,7 @@ fn solve(instructions: Instructions, allocator: *std.mem.Allocator, p1: *usize, 
             p1.* = newDots.count();
             first = false;
         }
-        
+
         std.mem.swap(util.HashSet(Point), &dots, &newDots);
     }
 
@@ -71,17 +71,11 @@ fn solve(instructions: Instructions, allocator: *std.mem.Allocator, p1: *usize, 
     }
 }
 
-const Point = struct {
-    x: usize,
-    y: usize
-};
+const Point = struct { x: usize, y: usize };
 
 const Direction = enum(u8) { x = 'x', y = 'y' };
 
-const Fold = struct {
-    direction: Direction,
-    index: usize
-};
+const Fold = struct { direction: Direction, index: usize };
 
 const Instructions = struct {
     dots: []Point,
@@ -108,7 +102,7 @@ const Instructions = struct {
         while (ind < contents.len) {
             var size: usize = undefined;
             var fold = Fold{ .direction = @intToEnum(Direction, contents[ind + 11]), .index = undefined };
-            util.toInt(usize, contents[ind + 13..], &fold.index, &size);
+            util.toInt(usize, contents[ind + 13 ..], &fold.index, &size);
             ind += 13 + size + 1;
             try folds.append(fold);
         }
@@ -121,4 +115,3 @@ const Instructions = struct {
         allocator.free(self.folds);
     }
 };
-

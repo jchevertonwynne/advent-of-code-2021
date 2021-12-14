@@ -20,49 +20,38 @@ pub const Contents = struct {
 
     pub fn load(allocator: *std.mem.Allocator) !Self {
         var dir = std.fs.cwd();
-        var day01String = try dir.readFileAlloc(allocator, "files/01.txt", std.math.maxInt(usize));
-        errdefer allocator.free(day01String);
-        var day02String = try dir.readFileAlloc(allocator, "files/02.txt", std.math.maxInt(usize));
-        errdefer allocator.free(day02String);
-        var day03String = try dir.readFileAlloc(allocator, "files/03.txt", std.math.maxInt(usize));
-        errdefer allocator.free(day03String);
-        var day04String = try dir.readFileAlloc(allocator, "files/04.txt", std.math.maxInt(usize));
-        errdefer allocator.free(day04String);
-        var day05String = try dir.readFileAlloc(allocator, "files/05.txt", std.math.maxInt(usize));
-        errdefer allocator.free(day05String);
-        var day06String = try dir.readFileAlloc(allocator, "files/06.txt", std.math.maxInt(usize));
-        errdefer allocator.free(day06String);
-        var day07String = try dir.readFileAlloc(allocator, "files/07.txt", std.math.maxInt(usize));
-        errdefer allocator.free(day07String);
-        var day08String = try dir.readFileAlloc(allocator, "files/08.txt", std.math.maxInt(usize));
-        errdefer allocator.free(day08String);
-        var day09String = try dir.readFileAlloc(allocator, "files/09.txt", std.math.maxInt(usize));
-        errdefer allocator.free(day09String);
-        var day10String = try dir.readFileAlloc(allocator, "files/10.txt", std.math.maxInt(usize));
-        errdefer allocator.free(day10String);
-        var day11String = try dir.readFileAlloc(allocator, "files/11.txt", std.math.maxInt(usize));
-        errdefer allocator.free(day11String);
-        var day12String = try dir.readFileAlloc(allocator, "files/12.txt", std.math.maxInt(usize));
-        errdefer allocator.free(day12String);
-        var day13String = try dir.readFileAlloc(allocator, "files/13.txt", std.math.maxInt(usize));
-        errdefer allocator.free(day13String);
 
-        return Self{
-            .allocator = allocator,
-            .day01 = day01String,
-            .day02 = day02String,
-            .day03 = day03String,
-            .day04 = day04String,
-            .day05 = day05String,
-            .day06 = day06String,
-            .day07 = day07String,
-            .day08 = day08String,
-            .day09 = day09String,
-            .day10 = day10String,
-            .day11 = day11String,
-            .day12 = day12String,
-            .day13 = day13String,
-        };
+        var self: Self = undefined;
+        self.allocator = allocator;
+        
+        self.day01 = try dir.readFileAlloc(allocator, "files/01.txt", std.math.maxInt(usize));
+        errdefer allocator.free(self.day01);
+        self.day02 = try dir.readFileAlloc(allocator, "files/02.txt", std.math.maxInt(usize));
+        errdefer allocator.free(self.day02);
+        self.day03 = try dir.readFileAlloc(allocator, "files/03.txt", std.math.maxInt(usize));
+        errdefer allocator.free(self.day03);
+        self.day04 = try dir.readFileAlloc(allocator, "files/04.txt", std.math.maxInt(usize));
+        errdefer allocator.free(self.day04);
+        self.day05 = try dir.readFileAlloc(allocator, "files/05.txt", std.math.maxInt(usize));
+        errdefer allocator.free(self.day05);
+        self.day06 = try dir.readFileAlloc(allocator, "files/06.txt", std.math.maxInt(usize));
+        errdefer allocator.free(self.day06);
+        self.day07 = try dir.readFileAlloc(allocator, "files/07.txt", std.math.maxInt(usize));
+        errdefer allocator.free(self.day07);
+        self.day08 = try dir.readFileAlloc(allocator, "files/08.txt", std.math.maxInt(usize));
+        errdefer allocator.free(self.day08);
+        self.day09 = try dir.readFileAlloc(allocator, "files/09.txt", std.math.maxInt(usize));
+        errdefer allocator.free(self.day09);
+        self.day10 = try dir.readFileAlloc(allocator, "files/10.txt", std.math.maxInt(usize));
+        errdefer allocator.free(self.day10);
+        self.day11 = try dir.readFileAlloc(allocator, "files/11.txt", std.math.maxInt(usize));
+        errdefer allocator.free(self.day11);
+        self.day12 = try dir.readFileAlloc(allocator, "files/12.txt", std.math.maxInt(usize));
+        errdefer allocator.free(self.day12);
+        self.day13 = try dir.readFileAlloc(allocator, "files/13.txt", std.math.maxInt(usize));
+        errdefer allocator.free(self.day13);
+        
+        return self;
     }
 
     pub fn discard(self: Self) void {
@@ -134,7 +123,7 @@ pub fn writeResponse(out: anytype, comptime day: usize, part1: anytype, part2: a
     try out.print("\tpart 1:\t{}\n", .{part1});
     if (@TypeOf(part2) == [6][40]u8) {
         try out.print("\tpart 2: {s}\n", .{part2[0]});
-        for (part2[1..]) |row| 
+        for (part2[1..]) |row|
             try out.print("\t\t{s}\n", .{row});
     } else {
         try out.print("\tpart 2:\t{}\n", .{part2});
