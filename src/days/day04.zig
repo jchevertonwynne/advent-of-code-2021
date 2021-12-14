@@ -8,8 +8,8 @@ pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
     var state = try State.load(contents, allocator);
     defer state.deinit();
 
-    var p1: usize = try part1(state);
-    var p2: usize = try part2(state);
+    var p1: usize = part1(state);
+    var p2: usize = part2(state);
 
     var duration = std.time.nanoTimestamp() - start;
 
@@ -18,7 +18,7 @@ pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
     return duration;
 }
 
-fn part1(state: State) !usize {
+fn part1(state: State) usize {
     for (state.called) |called| {
         for (state.boards) |*board| {
             board.mark(called);
@@ -38,10 +38,10 @@ fn part1(state: State) !usize {
         }
     }
 
-    return error.NoWinner;
+    unreachable;
 }
 
-fn part2(state: State) !usize {
+fn part2(state: State) usize {
     for (state.called) |called, i| {
         var winnerInd: usize = 0;
         var remaining: usize = 0;
@@ -83,7 +83,7 @@ fn part2(state: State) !usize {
 const State = struct {
     const Self = @This();
 
-    called: []usize,
+    called: []u7,
     boards: []Board,
     allocator: *std.mem.Allocator,
 
@@ -93,17 +93,17 @@ const State = struct {
     }
 
     fn load(contents: []u8, allocator: *std.mem.Allocator) !State {
-        var called = std.ArrayList(usize).init(allocator);
+        var called = std.ArrayList(u7).init(allocator);
         defer called.deinit();
         var boards = std.ArrayList(Board).init(allocator);
         defer boards.deinit();
 
         var ind: usize = 0;
         while (contents[ind] != '\n') {
-            var number: usize = 0;
+            var number: u7 = 0;
             while ('0' <= contents[ind] and contents[ind] <= '9') : (ind += 1) {
                 number *= 10;
-                number += contents[ind] - '0';
+                number += @truncate(u7, contents[ind] - '0');
             }
             try called.append(number);
             ind += 1;
@@ -114,15 +114,15 @@ const State = struct {
         while (ind < contents.len) {
             var board: Board = .{ .board = std.mem.zeroes([10]u100), .wonGame = false };
             var row: usize = 0;
-            var temp: [5][5]u100 = std.mem.zeroes([5][5]u100);
+            var temp: [5][5]u7 = std.mem.zeroes([5][5]u7);
             while (row < 5) : (row += 1) {
-                var cell: usize = 0;
+                var cell: u7 = 0;
                 while (cell < 5) : (cell += 1) {
                     temp[row][cell] = 0;
                     for (contents[ind .. ind + 2]) |c| {
                         if ('0' <= c and c <= '9') {
                             temp[row][cell] *= 10;
-                            temp[row][cell] += c - '0';
+                            temp[row][cell] += @truncate(u7, c - '0');
                         }
                     }
 
@@ -131,7 +131,7 @@ const State = struct {
             }
             for (temp) |tempRow, i| {
                 for (tempRow) |cell| {
-                    board.board[i] |= @as(u100, 1) << @truncate(u7, cell);
+                    board.board[i] |= @as(u100, 1) << cell;
                 }
             }
 
@@ -139,7 +139,7 @@ const State = struct {
             while (column < 5) : (column += 1) {
                 var tempRow: usize = 0;
                 while (tempRow < 5) : (tempRow += 1) {
-                    board.board[column + 5] |= @as(u100, 1) << @truncate(u7, temp[tempRow][column]);
+                    board.board[column + 5] |= @as(u100, 1) << temp[tempRow][column];
                 }
             }
 
@@ -157,8 +157,8 @@ const Board = struct {
     board: [10]u100,
     wonGame: bool,
 
-    fn mark(self: *Self, val: usize) void {
-        var mask = ~(@as(u100, 1) << @truncate(u7, val));
+    fn mark(self: *Self, val: u7) void {
+        var mask = ~(@as(u100, 1) << val);
         for (self.board) |*b|
             b.* &= mask;
     }
