@@ -9,7 +9,7 @@ pub fn run(contents: []u8, out: anytype) !i128 {
 
     var p1: usize = 0;
     var p2: usize = 0;
-    try solve(octopi, &p1, &p2);
+    solve(octopi, &p1, &p2);
 
     var duration = std.time.nanoTimestamp() - start;
 
@@ -20,12 +20,12 @@ pub fn run(contents: []u8, out: anytype) !i128 {
 
 const Coord = struct { x: usize, y: usize };
 
-fn solve(_octopi: Octopi, p1: *usize, p2: *usize) !void {
+fn solve(_octopi: Octopi, p1: *usize, p2: *usize) void {
     var octopi = _octopi;
 
     var step: usize = 0;
     while (true) : (step += 1) {
-        var flashing = try std.BoundedArray(Coord, 100).init(0);
+        var flashing = std.BoundedArray(Coord, 100).init(0) catch unreachable;
         var flashed = std.mem.zeroes([10][10]bool);
 
         for (octopi) |*row| {
@@ -36,7 +36,7 @@ fn solve(_octopi: Octopi, p1: *usize, p2: *usize) !void {
         for (octopi) |row, j| {
             for (row) |octopus, i| {
                 if (octopus >= 10) {
-                    try flashing.append(Coord{ .x = i, .y = j });
+                    flashing.append(Coord{ .x = i, .y = j }) catch unreachable;
                     flashed[i][j] = true;
                 }
             }
@@ -50,7 +50,7 @@ fn solve(_octopi: Octopi, p1: *usize, p2: *usize) !void {
                 if (x > 0 and y > 0) {
                     octopi[y - 1][x - 1] += 1;
                     if (!flashed[x - 1][y - 1] and octopi[y - 1][x - 1] >= 10) {
-                        try flashing.append(Coord{ .x = x - 1, .y = y - 1 });
+                        flashing.append(Coord{ .x = x - 1, .y = y - 1 }) catch unreachable;
                         flashed[x - 1][y - 1] = true;
                     }
                 }
@@ -58,7 +58,7 @@ fn solve(_octopi: Octopi, p1: *usize, p2: *usize) !void {
                 if (x > 0) {
                     octopi[y][x - 1] += 1;
                     if (!flashed[x - 1][y] and octopi[y][x - 1] >= 10) {
-                        try flashing.append(Coord{ .x = x - 1, .y = y });
+                        flashing.append(Coord{ .x = x - 1, .y = y }) catch unreachable;
                         flashed[x - 1][y] = true;
                     }
                 }
@@ -66,7 +66,7 @@ fn solve(_octopi: Octopi, p1: *usize, p2: *usize) !void {
                 if (y > 0) {
                     octopi[y - 1][x] += 1;
                     if (!flashed[x][y - 1] and octopi[y - 1][x] >= 10) {
-                        try flashing.append(Coord{ .x = x, .y = y - 1 });
+                        flashing.append(Coord{ .x = x, .y = y - 1 }) catch unreachable;
                         flashed[x][y - 1] = true;
                     }
                 }
@@ -74,7 +74,7 @@ fn solve(_octopi: Octopi, p1: *usize, p2: *usize) !void {
                 if (x + 1 < 10 and y + 1 < 10) {
                     octopi[y + 1][x + 1] += 1;
                     if (!flashed[x + 1][y + 1] and octopi[y + 1][x + 1] >= 10) {
-                        try flashing.append(Coord{ .x = x + 1, .y = y + 1 });
+                        flashing.append(Coord{ .x = x + 1, .y = y + 1 }) catch unreachable;
                         flashed[x + 1][y + 1] = true;
                     }
                 }
@@ -82,7 +82,7 @@ fn solve(_octopi: Octopi, p1: *usize, p2: *usize) !void {
                 if (x > 0 and y + 1 < 10) {
                     octopi[y + 1][x - 1] += 1;
                     if (!flashed[x - 1][y + 1] and octopi[y + 1][x - 1] >= 10) {
-                        try flashing.append(Coord{ .x = x - 1, .y = y + 1 });
+                        flashing.append(Coord{ .x = x - 1, .y = y + 1 }) catch unreachable;
                         flashed[x - 1][y + 1] = true;
                     }
                 }
@@ -90,7 +90,7 @@ fn solve(_octopi: Octopi, p1: *usize, p2: *usize) !void {
                 if (x + 1 < 10 and y > 0) {
                     octopi[y - 1][x + 1] += 1;
                     if (!flashed[x + 1][y - 1] and octopi[y - 1][x + 1] >= 10) {
-                        try flashing.append(Coord{ .x = x + 1, .y = y - 1 });
+                        flashing.append(Coord{ .x = x + 1, .y = y - 1 }) catch unreachable;
                         flashed[x + 1][y - 1] = true;
                     }
                 }
@@ -98,7 +98,7 @@ fn solve(_octopi: Octopi, p1: *usize, p2: *usize) !void {
                 if (x + 1 < 10) {
                     octopi[y][x + 1] += 1;
                     if (!flashed[x + 1][y] and octopi[y][x + 1] >= 10) {
-                        try flashing.append(Coord{ .x = x + 1, .y = y });
+                        flashing.append(Coord{ .x = x + 1, .y = y }) catch unreachable;
                         flashed[x + 1][y] = true;
                     }
                 }
@@ -106,7 +106,7 @@ fn solve(_octopi: Octopi, p1: *usize, p2: *usize) !void {
                 if (y + 1 < 10) {
                     octopi[y + 1][x] += 1;
                     if (!flashed[x][y + 1] and octopi[y + 1][x] >= 10) {
-                        try flashing.append(Coord{ .x = x, .y = y + 1 });
+                        flashing.append(Coord{ .x = x, .y = y + 1 }) catch unreachable;
                         flashed[x][y + 1] = true;
                     }
                 }
