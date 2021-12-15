@@ -54,7 +54,7 @@ pub fn main() !void {
     duration += try day12.run(contents.day12, &writer, allocator);
     duration += try day13.run(contents.day13, &writer, allocator);
     duration += try day14.run(contents.day14, &writer, allocator);
-    duration += try day15.run(100, contents.day15, &writer, allocator);
+    duration += try day15.run(contents.day15, &writer, allocator);
 
     try writer.print("aoc ran in:\n", .{});
     try writer.print("\t{d}ms\n", .{@divFloor(duration, 1_000_000)});

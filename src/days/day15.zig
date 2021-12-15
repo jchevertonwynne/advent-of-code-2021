@@ -2,13 +2,12 @@ const std = @import("std");
 
 const util = @import("../util.zig");
 
-pub fn run(comptime world_size: usize, contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
+pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
     var start = std.time.nanoTimestamp();
-    _ = allocator;
-    var world = loadWorld(world_size, contents);
 
-    var p1: usize = try part1(world_size, world, allocator);
-    var p2: usize = try part2(world_size, world, allocator);
+    var p1: usize = undefined;
+    var p2: usize = undefined;
+    try solve(100, contents, allocator, &p1, &p2);
 
     var duration = std.time.nanoTimestamp() - start;
 
@@ -17,10 +16,60 @@ pub fn run(comptime world_size: usize, contents: []u8, out: anytype, allocator: 
     return duration;
 }
 
-const Point = struct {
-    i: usize,
-    j: usize
+fn solve(comptime world_size: usize, contents: []u8, allocator: *std.mem.Allocator, p1: *usize, p2: *usize) !void {
+    var world = loadWorld(world_size, contents);
+    p1.* = try part1(world_size, world, allocator);
+    p2.* = try part2(world_size, world, allocator);
+}
+
+const Point = struct { i: usize, j: usize };
+
+const QueuePoint = struct {
+    point: Point,
+    lowestNeighbourScore: usize,
+
+    fn compare(a: QueuePoint, b: QueuePoint) std.math.Order {
+        return std.math.order(a.lowestNeighbourScore, b.lowestNeighbourScore);
+    }
 };
+
+fn part1(comptime world_size: usize, world: World(world_size), allocator: *std.mem.Allocator) !usize {
+    var queue = std.PriorityQueue(QueuePoint, QueuePoint.compare).init(allocator);
+    defer queue.deinit();
+    try queue.add(QueuePoint{ .point = Point{ .i = 0, .j = 0 }, .lowestNeighbourScore = 0 });
+
+    var seen = std.mem.zeroes([world_size][world_size]bool);
+    seen[0][0] = true;
+
+    while (queue.removeOrNull()) |queuePoint| {
+        var point = queuePoint.point;
+        var i = point.i;
+        var j = point.j;
+        var score = queuePoint.lowestNeighbourScore;
+
+        if (i == world_size - 1 and j == world_size - 1)
+            return score;
+
+        if (i > 0 and !seen[j][i - 1]) {
+            seen[j][i - 1] = true;
+            try queue.add(QueuePoint{ .point = Point{ .i = i - 1, .j = j }, .lowestNeighbourScore = score + world[j][i - 1] });
+        }
+        if (i + 1 < world_size and !seen[j][i + 1]) {
+            seen[j][i + 1] = true;
+            try queue.add(QueuePoint{ .point = Point{ .i = i + 1, .j = j }, .lowestNeighbourScore = score + world[j][i + 1] });
+        }
+        if (j > 0 and !seen[j - 1][i]) {
+            seen[j - 1][i] = true;
+            try queue.add(QueuePoint{ .point = Point{ .i = i, .j = j - 1 }, .lowestNeighbourScore = score + world[j - 1][i] });
+        }
+        if (j + 1 < world_size and !seen[j + 1][i]) {
+            seen[j + 1][i] = true;
+            try queue.add(QueuePoint{ .point = Point{ .i = i, .j = j + 1 }, .lowestNeighbourScore = score + world[j + 1][i] });
+        }
+    }
+
+    unreachable;
+}
 
 fn part2(comptime world_size: usize, world: World(world_size), allocator: *std.mem.Allocator) !usize {
     var largerWorld: World(world_size * 5) = undefined;
@@ -39,7 +88,7 @@ fn part2(comptime world_size: usize, world: World(world_size), allocator: *std.m
             while (x < world_size) : (x += 1) {
                 var y: usize = 0;
                 while (y < world_size) : (y += 1) {
-                    if (i == 0) 
+                    if (i == 0)
                         largerWorld[world_size * j + y][world_size * i + x] = largerWorld[world_size * (j - 1) + y][world_size * i + x] + 1
                     else
                         largerWorld[world_size * j + y][world_size * i + x] = largerWorld[world_size * j + y][world_size * (i - 1) + x] + 1;
@@ -50,58 +99,6 @@ fn part2(comptime world_size: usize, world: World(world_size), allocator: *std.m
         }
     }
     return try part1(world_size * 5, largerWorld, allocator);
-}
-
-fn part1(comptime world_size: usize, world: World(world_size), allocator: *std.mem.Allocator) !usize {
-    var lowestRisk = std.mem.zeroes([world_size][world_size]usize);
-    var seen = std.mem.zeroes([world_size][world_size]bool);
-    
-    lowestRisk[world_size - 1][world_size - 1] = world[world_size - 1][world_size - 1];
-    seen[world_size - 1][world_size - 1] = true;
-    var doable = util.HashSet(Point).init(allocator);
-    defer doable.deinit();
-    try doable.insert(Point{ .i = world_size - 2, .j = world_size - 1 });
-    try doable.insert(Point{ .i = world_size - 1, .j = world_size - 2 });
-
-    while (doable.count() != 0) {
-        var it = doable.iterator();
-        var best: Point = undefined;
-        var lowestBest: usize = std.math.maxInt(usize);
-        while (it.next()) |point| {
-            var i = point.i;
-            var j = point.j;
-            var localBest: usize = std.math.maxInt(usize);
-
-            if (i > 0 and seen[j][i - 1])
-                localBest = std.math.min(localBest, lowestRisk[j][i - 1]);
-            if (i + 1 < world_size and seen[j][i + 1])
-                localBest = std.math.min(localBest, lowestRisk[j][i + 1]);
-            if (j > 0 and seen[j - 1][i])
-                localBest = std.math.min(localBest, lowestRisk[j - 1][i]);
-            if (j + 1 < world_size and seen[j + 1][i])
-                localBest = std.math.min(localBest, lowestRisk[j + 1][i]);
-
-            if (localBest < lowestBest) {
-                best = point.*;
-                lowestBest = localBest;
-            }   
-        }
-        if (best.i == 0 and best.j == 0) 
-            return lowestBest;
-        lowestRisk[best.j][best.i] = world[best.j][best.i] + lowestBest;
-        seen[best.j][best.i] = true;
-        _ = doable.remove(best);
-        if (best.i > 0 and !seen[best.j][best.i - 1])
-            try doable.insert(Point{ .i = best.i - 1, .j = best.j });
-        if (best.i + 1 < world_size and !seen[best.j][best.i + 1])
-            try doable.insert(Point{ .i = best.i + 1, .j = best.j });
-        if (best.j > 0 and !seen[best.j - 1][best.i])
-            try doable.insert(Point{ .i = best.i, .j = best.j - 1 });
-        if (best.j + 1 < world_size and !seen[best.j + 1][best.i])
-            try doable.insert(Point{ .i = best.i, .j = best.j + 1 });
-    }
-
-    return lowestRisk[0][0] - world[0][0];
 }
 
 fn World(comptime world_size: usize) type {
