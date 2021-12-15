@@ -184,8 +184,8 @@ const Line = struct {
             if (aIntersect != bIntersect) // if on the same slops then the intersects must be the same
                 return null;
             // check if the segment legnth is possible
-            var aLen = a.end.x - a.start.x;
-            var bLen = b.end.x - b.start.x;
+            var aLen = maxAX - minAX;
+            var bLen = maxBX - minBX;
             var potLen = max4(a.start.x, a.end.x, b.start.x, b.end.x) - min4(a.start.x, a.end.x, b.start.x, b.end.x);
             if (aLen + bLen <= potLen)
                 return null;
