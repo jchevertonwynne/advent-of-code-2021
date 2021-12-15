@@ -18,6 +18,7 @@ pub const Contents = struct {
     day12: []u8,
     day13: []u8,
     day14: []u8,
+    day15: []u8,
 
     pub fn load(allocator: *std.mem.Allocator) !Self {
         var dir = std.fs.cwd();
@@ -53,6 +54,8 @@ pub const Contents = struct {
         errdefer allocator.free(self.day13);
         self.day14 = try dir.readFileAlloc(allocator, "files/14.txt", std.math.maxInt(usize));
         errdefer allocator.free(self.day14);
+        self.day15 = try dir.readFileAlloc(allocator, "files/15.txt", std.math.maxInt(usize));
+        errdefer allocator.free(self.day15);
 
         return self;
     }
@@ -72,6 +75,7 @@ pub const Contents = struct {
         self.allocator.free(self.day12);
         self.allocator.free(self.day13);
         self.allocator.free(self.day14);
+        self.allocator.free(self.day15);
     }
 };
 
@@ -102,6 +106,10 @@ pub fn HashSet(comptime T: type) type {
 
         pub fn insert(self: *Self, val: T) !void {
             return self.map.put(val, {});
+        }
+
+        pub fn remove(self: *Self, val: T) bool {
+            return self.map.remove(val);
         }
 
         pub fn contains(self: Self, val: T) bool {
