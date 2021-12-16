@@ -22,9 +22,7 @@ pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
     return duration;
 }
 
-const PacketType = enum { literal, operator };
-
-const BITSPacketResult = struct { packet: BITSPacket, remaining: []bool };
+const BITSPacketResult = struct { packet: BITSPacket, remaining: []u1 };
 
 const BITSPacket = struct {
     packetVersion: u3,
@@ -32,31 +30,31 @@ const BITSPacket = struct {
     literal: ?usize,
     subpackets: ?[]BITSPacket,
 
-    fn parse(bits: []bool, allocator: *std.mem.Allocator) anyerror!BITSPacketResult {
+    fn parse(bits: []u1, allocator: *std.mem.Allocator) anyerror!BITSPacketResult {
         var result: @This() = .{ .packetVersion = 0, .packetType = 0, .literal = null, .subpackets = null };
 
-        result.packetVersion += @boolToInt(bits[0]);
+        result.packetVersion += bits[0];
         result.packetVersion <<= 1;
-        result.packetVersion += @boolToInt(bits[1]);
+        result.packetVersion += bits[1];
         result.packetVersion <<= 1;
-        result.packetVersion += @boolToInt(bits[2]);
+        result.packetVersion += bits[2];
 
-        result.packetType += @boolToInt(bits[3]);
+        result.packetType += bits[3];
         result.packetType <<= 1;
-        result.packetType += @boolToInt(bits[4]);
+        result.packetType += bits[4];
         result.packetType <<= 1;
-        result.packetType += @boolToInt(bits[5]);
+        result.packetType += bits[5];
 
-        if (result.packetType == 4) { // literal value
+        if (result.packetType == 4) {
             var literal: usize = 0;
             var ind: usize = 6;
             var segment = bits[ind .. ind + 5];
             while (true) {
                 for (segment[1..]) |b| {
                     literal <<= 1;
-                    literal += @boolToInt(b);
+                    literal += b;
                 }
-                if (!segment[0])
+                if (segment[0] == 0)
                     break;
                 ind += 5;
                 segment = bits[ind .. ind + 5];
@@ -64,13 +62,12 @@ const BITSPacket = struct {
             result.literal = literal;
             return BITSPacketResult{ .packet = result, .remaining = bits[ind + 5 ..] };
         } else {
-            var lengthTypeID = @boolToInt(bits[6]);
+            var lengthTypeID = bits[6];
             if (lengthTypeID == 0) {
-                var totalLengthBits = bits[7 .. 7 + 15];
                 var totalLength: usize = 0;
-                for (totalLengthBits) |t| {
+                for (bits[7..22]) |t| {
                     totalLength <<= 1;
-                    totalLength += @boolToInt(t);
+                    totalLength += t;
                 }
                 var remaining = bits[22..];
                 var startLen = remaining.len;
@@ -84,11 +81,10 @@ const BITSPacket = struct {
                 result.subpackets = subpackets.toOwnedSlice();
                 return BITSPacketResult{ .packet = result, .remaining = remaining };
             } else {
-                var totalFollowingBits = bits[7 .. 7 + 11];
                 var totalFollowing: usize = 0;
-                for (totalFollowingBits) |t| {
+                for (bits[7..18]) |t| {
                     totalFollowing <<= 1;
-                    totalFollowing += @boolToInt(t);
+                    totalFollowing += t;
                 }
                 var remaining = bits[18..];
                 var subpackets = std.ArrayList(BITSPacket).init(allocator);
@@ -109,9 +105,8 @@ const BITSPacket = struct {
 
     fn deinit(self: *@This(), allocator: *std.mem.Allocator) void {
         if (self.subpackets) |*subpackets| {
-            for (subpackets.*) |*s| {
+            for (subpackets.*) |*s|
                 s.deinit(allocator);
-            }
             allocator.free(subpackets.*);
         }
     }
@@ -131,30 +126,26 @@ const BITSPacket = struct {
         switch (self.packetType) {
             0 => {
                 var sum: usize = 0;
-                for (self.subpackets.?) |subpacket| {
+                for (self.subpackets.?) |subpacket|
                     sum += subpacket.value();
-                }
                 return sum;
             },
             1 => {
                 var product: usize = 1;
-                for (self.subpackets.?) |subpacket| {
+                for (self.subpackets.?) |subpacket|
                     product *= subpacket.value();
-                }
                 return product;
             },
             2 => {
                 var minimum: usize = std.math.maxInt(usize);
-                for (self.subpackets.?) |subpacket| {
+                for (self.subpackets.?) |subpacket|
                     minimum = std.math.min(minimum, subpacket.value());
-                }
                 return minimum;
             },
             3 => {
                 var maximum: usize = std.math.minInt(usize);
-                for (self.subpackets.?) |subpacket| {
+                for (self.subpackets.?) |subpacket|
                     maximum = std.math.max(maximum, subpacket.value());
-                }
                 return maximum;
             },
             4 => return self.literal.?,
@@ -165,28 +156,28 @@ const BITSPacket = struct {
     }
 };
 
-fn toBits(contents: []u8, allocator: *std.mem.Allocator) ![]bool {
-    var res = std.ArrayList(bool).init(allocator);
+fn toBits(contents: []u8, allocator: *std.mem.Allocator) ![]u1 {
+    var res = std.ArrayList(u1).init(allocator);
     errdefer res.deinit();
 
     for (contents) |c| {
         var binaryContents = switch (c) {
-            '0' => [4]bool{ false, false, false, false },
-            '1' => [4]bool{ false, false, false, true },
-            '2' => [4]bool{ false, false, true, false },
-            '3' => [4]bool{ false, false, true, true },
-            '4' => [4]bool{ false, true, false, false },
-            '5' => [4]bool{ false, true, false, true },
-            '6' => [4]bool{ false, true, true, false },
-            '7' => [4]bool{ false, true, true, true },
-            '8' => [4]bool{ true, false, false, false },
-            '9' => [4]bool{ true, false, false, true },
-            'A' => [4]bool{ true, false, true, false },
-            'B' => [4]bool{ true, false, true, true },
-            'C' => [4]bool{ true, true, false, false },
-            'D' => [4]bool{ true, true, false, true },
-            'E' => [4]bool{ true, true, true, false },
-            'F' => [4]bool{ true, true, true, true },
+            '0' => [4]u1{ 0, 0, 0, 0 },
+            '1' => [4]u1{ 0, 0, 0, 1 },
+            '2' => [4]u1{ 0, 0, 1, 0 },
+            '3' => [4]u1{ 0, 0, 1, 1 },
+            '4' => [4]u1{ 0, 1, 0, 0 },
+            '5' => [4]u1{ 0, 1, 0, 1 },
+            '6' => [4]u1{ 0, 1, 1, 0 },
+            '7' => [4]u1{ 0, 1, 1, 1 },
+            '8' => [4]u1{ 1, 0, 0, 0 },
+            '9' => [4]u1{ 1, 0, 0, 1 },
+            'A' => [4]u1{ 1, 0, 1, 0 },
+            'B' => [4]u1{ 1, 0, 1, 1 },
+            'C' => [4]u1{ 1, 1, 0, 0 },
+            'D' => [4]u1{ 1, 1, 0, 1 },
+            'E' => [4]u1{ 1, 1, 1, 0 },
+            'F' => [4]u1{ 1, 1, 1, 1 },
             else => unreachable,
         };
         try res.appendSlice(&binaryContents);

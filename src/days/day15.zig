@@ -74,9 +74,8 @@ fn part1(comptime world_size: usize, world: World(world_size), allocator: *std.m
 fn part2(comptime world_size: usize, world: World(world_size), allocator: *std.mem.Allocator) !usize {
     var largerWorld: World(world_size * 5) = undefined;
     for (world) |row, j| {
-        for (row) |cell, i| {
+        for (row) |cell, i|
             largerWorld[j][i] = cell;
-        }
     }
     var i: u8 = 0;
     while (i < 5) : (i += 1) {
@@ -111,9 +110,8 @@ fn loadWorld(comptime world_size: usize, contents: []u8) World(world_size) {
     var i: usize = 0;
     while (i < world_size) : (i += 1) {
         var j: usize = 0;
-        while (j < world_size) : (j += 1) {
+        while (j < world_size) : (j += 1)
             world[j][i] = contents[i + (world_size + 1) * j] - '0';
-        }
     }
 
     return world;
