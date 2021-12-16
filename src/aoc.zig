@@ -16,6 +16,7 @@ const day12 = @import("./days/day12.zig");
 const day13 = @import("./days/day13.zig");
 const day14 = @import("./days/day14.zig");
 const day15 = @import("./days/day15.zig");
+const day16 = @import("./days/day16.zig");
 const util = @import("util.zig");
 
 const Contents = util.Contents;
@@ -55,6 +56,7 @@ pub fn main() !void {
     duration += try day13.run(contents.day13, &writer, allocator);
     duration += try day14.run(contents.day14, &writer, allocator);
     duration += try day15.run(contents.day15, &writer, allocator);
+    duration += try day16.run(contents.day16, &writer, allocator);
 
     try writer.print("aoc ran in:\n", .{});
     try writer.print("\t{d}ms\n", .{@divFloor(duration, 1_000_000)});
