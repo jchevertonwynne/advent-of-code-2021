@@ -20,6 +20,7 @@ pub const Contents = struct {
     day14: []u8,
     day15: []u8,
     day16: []u8,
+    day17: []u8,
 
     pub fn load(allocator: *std.mem.Allocator) !Self {
         var dir = std.fs.cwd();
@@ -59,6 +60,8 @@ pub const Contents = struct {
         errdefer allocator.free(self.day15);
         self.day16 = try dir.readFileAlloc(allocator, "files/16.txt", std.math.maxInt(usize));
         errdefer allocator.free(self.day16);
+        self.day17 = try dir.readFileAlloc(allocator, "files/17.txt", std.math.maxInt(usize));
+        errdefer allocator.free(self.day17);
 
         return self;
     }
@@ -80,6 +83,7 @@ pub const Contents = struct {
         self.allocator.free(self.day14);
         self.allocator.free(self.day15);
         self.allocator.free(self.day16);
+        self.allocator.free(self.day17);
     }
 };
 
@@ -164,6 +168,31 @@ pub fn toInt(comptime T: type, contents: []u8, number: *T, size: *usize) void {
             characters = i;
         } else break;
     }
+
+    number.* = result;
+    size.* = characters + 1;
+}
+
+pub fn toSignedInt(comptime T: type, contents: []u8, number: *T, size: *usize) void {
+    if (@typeInfo(T).Int.signedness == .unsigned)
+        @compileError("must supply a signed integer");
+
+    var result: T = 0;
+    var characters: usize = 0;
+    var negative = false;
+
+    for (contents) |char, i| {
+        if ('0' <= char and char <= '9') {
+            result *= 10;
+            result += @as(T, char - '0');
+            characters = i;
+        } else if (char == '-') {
+            negative = true;
+        } else break;
+    }
+
+    if (negative)
+        result = std.math.negate(result) catch unreachable;
 
     number.* = result;
     size.* = characters + 1;
