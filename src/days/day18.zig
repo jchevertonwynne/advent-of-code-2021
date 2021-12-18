@@ -145,7 +145,6 @@ const SnailFishNumber = struct {
     }
 
     fn add(a: SnailFishNumber, b: SnailFishNumber, allocator: *std.mem.Allocator) !SnailFishNumber {
-        var number = SnailFishNumber{ .entries = undefined, .filled = 1 };
         var aCopy = try a.copy(allocator);
         errdefer aCopy.deinit(allocator);
         var bCopy = try b.copy(allocator);
@@ -157,6 +156,7 @@ const SnailFishNumber = struct {
         errdefer allocator.destroy(bPointer);
         bPointer.* = bCopy;
 
+        var number = SnailFishNumber{ .entries = undefined, .filled = 2 };
         number.entries[0] = SnailFishEntry{ .nested = aPointer };
         number.entries[1] = SnailFishEntry{ .nested = bPointer };
         try number.normalise(allocator);
@@ -181,13 +181,6 @@ const SnailFishNumber = struct {
         return 3 * self.entries[0].magnitude() + 2 * self.entries[1].magnitude();
     }
 };
-
-fn tab(count: usize) void {
-    var i: usize = 0;
-    while (i < count) : (i += 1) {
-        std.debug.print("  ", .{});
-    }
-}
 
 const SnailFishEntry = union(enum) {
     value: usize,
@@ -291,7 +284,7 @@ fn loadSnailFishNumbers(contents: []u8, allocator: *std.mem.Allocator) ![]SnailF
         defer builder.deinit();
         try builder.append(&number);
 
-        while (contents[ind] != '\n') : (ind += 1) {
+        while (contents[ind + 1] != '\n') : (ind += 1) {
             switch (contents[ind]) {
                 '[' => {
                     var inner = try allocator.create(SnailFishNumber);
@@ -301,10 +294,10 @@ fn loadSnailFishNumbers(contents: []u8, allocator: *std.mem.Allocator) ![]SnailF
                     builder.items[builder.items.len - 1].filled += 1;
                     try builder.append(inner);
                 },
-                ']' => _ = builder.popOrNull(),
+                ']' => _ = builder.pop(),
                 ',' => {},
-                '0'...'9' => {
-                    builder.items[builder.items.len - 1].entries[builder.items[builder.items.len - 1].filled] = SnailFishEntry{ .value = contents[ind] - '0' };
+                '0'...'9' => |digit| {
+                    builder.items[builder.items.len - 1].entries[builder.items[builder.items.len - 1].filled] = SnailFishEntry{ .value = digit - '0' };
                     builder.items[builder.items.len - 1].filled += 1;
                 },
                 else => unreachable,
@@ -313,8 +306,15 @@ fn loadSnailFishNumbers(contents: []u8, allocator: *std.mem.Allocator) ![]SnailF
 
         try numbers.append(number);
 
-        ind += 2;
+        ind += 3;
     }
 
     return numbers.toOwnedSlice();
+}
+
+fn tab(count: usize) void {
+    var i: usize = 0;
+    while (i < count) : (i += 1) {
+        std.debug.print("  ", .{});
+    }
 }
