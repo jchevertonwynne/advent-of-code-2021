@@ -22,7 +22,7 @@ fn triangular(i: i32) i32 {
     return @divFloor(i * (i + 1), 2);
 }
 
-fn solve(area: Area) struct{ part1: i32, part2: usize } {
+fn solve(area: Area) struct { part1: i32, part2: usize } {
     var bestY: i32 = std.math.minInt(i32);
     var hits: usize = 0;
 
