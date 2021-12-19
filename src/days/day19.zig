@@ -24,9 +24,9 @@ pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
 }
 
 const KnownPosition = struct { rotation: usize, referenceGridDelta: Vec3 };
-const Pair = struct{a: Vec3, b: Vec3};
-const SolveResult = struct{ part1: usize, part2: i32 };
-const MagnitudeMapVal = struct{ count: usize, last: ?Pair };
+const Pair = struct { a: Vec3, b: Vec3 };
+const SolveResult = struct { part1: usize, part2: i32 };
+const MagnitudeMapVal = struct { count: usize, last: ?Pair };
 
 fn solve(scanners: []Scanner, allocator: *std.mem.Allocator) !SolveResult {
     var knownPostions = std.AutoHashMap(*Scanner, KnownPosition).init(allocator);
@@ -38,7 +38,7 @@ fn solve(scanners: []Scanner, allocator: *std.mem.Allocator) !SolveResult {
         try unsolvedScanner.append(scanner);
 
     var stillUnsolved = std.ArrayList(*Scanner).init(allocator);
-        defer stillUnsolved.deinit();
+    defer stillUnsolved.deinit();
 
     var solved = &scanners[0];
     try knownPostions.put(solved, KnownPosition{ .rotation = 0, .referenceGridDelta = Vec3{ .x = 0, .y = 0, .z = 0 } });
@@ -49,13 +49,14 @@ fn solve(scanners: []Scanner, allocator: *std.mem.Allocator) !SolveResult {
     for (solved.readings.items) |reading|
         try referenceGrid.insert(reading[0]);
 
+    var magnitudes = std.AutoHashMap(i32, MagnitudeMapVal).init(allocator);
+    defer magnitudes.deinit();
+
     while (unsolvedScanner.items.len != 0) {
         while (unsolvedScanner.popOrNull()) |unsolved| {
-
             var rotation: usize = 0;
             block: while (rotation < 24) : (rotation += 1) {
-                var magnitudes = std.AutoHashMap(i32, MagnitudeMapVal).init(allocator);
-                defer magnitudes.deinit();
+                magnitudes.clearRetainingCapacity();
 
                 for (unsolved.readings.items) |reading| {
                     var rot = reading[rotation];
@@ -66,13 +67,13 @@ fn solve(scanners: []Scanner, allocator: *std.mem.Allocator) !SolveResult {
                         if (!entry.found_existing)
                             entry.value_ptr.* = MagnitudeMapVal{ .count = 0, .last = null };
                         entry.value_ptr.count += 1;
-                        entry.value_ptr.last = Pair{.a = referenceCoord.*, .b = rot};
+                        entry.value_ptr.last = Pair{ .a = referenceCoord.*, .b = rot };
                     }
                 }
 
                 var magIt = magnitudes.iterator();
                 while (magIt.next()) |m| {
-                    if ( m.value_ptr.count >= 12) {
+                    if (m.value_ptr.count >= 12) {
                         var coords = m.value_ptr.last.?;
                         var newReferenceGridDelta = coords.a.sub(coords.b);
                         try knownPostions.put(unsolved, KnownPosition{ .rotation = rotation, .referenceGridDelta = newReferenceGridDelta });
@@ -107,7 +108,7 @@ const Vec3 = struct {
     z: i32,
 
     fn manhattan(self: @This(), other: @This()) i32 {
-        return (std.math.absInt(self.x - other.x) catch unreachable) +  (std.math.absInt(self.y - other.y) catch unreachable) +  (std.math.absInt(self.z - other.z) catch unreachable);
+        return (std.math.absInt(self.x - other.x) catch unreachable) + (std.math.absInt(self.y - other.y) catch unreachable) + (std.math.absInt(self.z - other.z) catch unreachable);
     }
 
     fn magnitude(self: @This()) i32 {
