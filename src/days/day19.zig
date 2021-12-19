@@ -24,9 +24,9 @@ pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
 }
 
 const KnownPosition = struct { rotation: usize, referenceGridDelta: Vec3 };
-const Pair = struct{a: Vec3, b: Vec3};
-const SolveResult = struct{ part1: usize, part2: i32 };
-const MagnitudeMapVal = struct{ count: usize, last: ?Pair };
+const Pair = struct { a: Vec3, b: Vec3 };
+const SolveResult = struct { part1: usize, part2: i32 };
+const MagnitudeMapVal = struct { count: usize, last: ?Pair };
 
 fn solve(scanners: []Scanner, allocator: *std.mem.Allocator) !SolveResult {
     var knownPostions = std.AutoHashMap(*Scanner, KnownPosition).init(allocator);
@@ -38,7 +38,7 @@ fn solve(scanners: []Scanner, allocator: *std.mem.Allocator) !SolveResult {
         try unsolvedScanner.append(scanner);
 
     var stillUnsolved = std.ArrayList(*Scanner).init(allocator);
-        defer stillUnsolved.deinit();
+    defer stillUnsolved.deinit();
 
     var solved = &scanners[0];
     try knownPostions.put(solved, KnownPosition{ .rotation = 0, .referenceGridDelta = Vec3{ .x = 0, .y = 0, .z = 0 } });
@@ -52,6 +52,9 @@ fn solve(scanners: []Scanner, allocator: *std.mem.Allocator) !SolveResult {
     for (solved.readings) |reading|
         try referenceGrid.insert(reading[0]);
 
+    var magnitudes = std.AutoHashMap(i32, MagnitudeMapVal).init(allocator);
+    defer magnitudes.deinit();
+
     while (unsolvedScanner.items.len != 0) {
         while (unsolvedScanner.popOrNull()) |unsolved| {
             var knownIt = knownPostions.iterator();
@@ -61,8 +64,7 @@ fn solve(scanners: []Scanner, allocator: *std.mem.Allocator) !SolveResult {
                 
                 var rotation: usize = 0;
                 while (rotation < 24) : (rotation += 1) {
-                    var magnitudes = std.AutoHashMap(i32, MagnitudeMapVal).init(allocator);
-                    defer magnitudes.deinit();
+                    magnitudes.clearRetainingCapacity();
 
                     for (unsolved.readings) |reading| {
                         var rot = reading[rotation];
@@ -115,7 +117,7 @@ const Vec3 = struct {
     z: i32,
 
     fn manhattan(self: @This(), other: @This()) i32 {
-        return (std.math.absInt(self.x - other.x) catch unreachable) +  (std.math.absInt(self.y - other.y) catch unreachable) +  (std.math.absInt(self.z - other.z) catch unreachable);
+        return (std.math.absInt(self.x - other.x) catch unreachable) + (std.math.absInt(self.y - other.y) catch unreachable) + (std.math.absInt(self.z - other.z) catch unreachable);
     }
 
     fn magnitude(self: @This()) i32 {
