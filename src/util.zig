@@ -22,6 +22,7 @@ pub const Contents = struct {
     day16: []u8,
     day17: []u8,
     day18: []u8,
+    day19: []u8,
 
     pub fn load(allocator: *std.mem.Allocator) !Self {
         var dir = std.fs.cwd();
@@ -65,6 +66,8 @@ pub const Contents = struct {
         errdefer allocator.free(self.day17);
         self.day18 = try dir.readFileAlloc(allocator, "files/18.txt", std.math.maxInt(usize));
         errdefer allocator.free(self.day18);
+        self.day19 = try dir.readFileAlloc(allocator, "files/19_2.txt", std.math.maxInt(usize));
+        errdefer allocator.free(self.day19);
 
         return self;
     }
@@ -88,6 +91,7 @@ pub const Contents = struct {
         self.allocator.free(self.day16);
         self.allocator.free(self.day17);
         self.allocator.free(self.day18);
+        self.allocator.free(self.day19);
     }
 };
 
@@ -196,7 +200,7 @@ pub fn toSignedInt(comptime T: type, contents: []u8, number: *T, size: *usize) v
     }
 
     if (negative)
-        result = std.math.negate(result) catch unreachable;
+        result = -result;
 
     number.* = result;
     size.* = characters + 1;

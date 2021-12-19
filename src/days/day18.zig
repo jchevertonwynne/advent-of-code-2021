@@ -5,15 +5,26 @@ const util = @import("../util.zig");
 pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
     var start = std.time.nanoTimestamp();
 
-    var numbers = try loadSnailFishNumbers(contents, allocator);
-    defer {
-        for (numbers) |*n|
-            n.deinit(allocator);
-        allocator.free(numbers);
-    }
+    _ = allocator;
+    _ = contents;
 
-    var p1: usize = try part1(numbers, allocator);
-    var p2: usize = try part2(numbers, allocator);
+    // var a = "[[[[4,3],4],4],[7,[[8,4],9]]]\n";
+    // var b = "[1,1]\n";
+    // var aNum = SnailNumber.parse(a);
+    // var bNum = SnailNumber.parse(b);
+    // var sum = SnailNumber.add(aNum, bNum);
+
+    var c = "[[[[[4,3],4],4],[7,[[8,4],9]]],[1,1]]\n";
+    var cNum = SnailNumber.parse(c);
+    cNum.print();
+
+    // std.debug.print("{}\n", .{cNum.explode(0, 0)});
+    cNum.normalise();
+
+    cNum.print();
+
+    var p1: usize = 0;
+    var p2: usize = 0;
 
     var duration = std.time.nanoTimestamp() - start;
 
@@ -22,299 +33,163 @@ pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
     return duration;
 }
 
-fn part1(numbers: []SnailFishNumber, allocator: *std.mem.Allocator) !usize {
-    var base = try numbers[0].copy(allocator);
-    defer base.deinit(allocator);
-    for (numbers[1..]) |number| {
-        var base2 = try SnailFishNumber.add(base, number, allocator);
-        base.deinit(allocator);
-        base = base2;
-    }
-    return base.magnitude();
-}
+const SnailNumber = struct {
+    contents: [129]?u8, // if null - check index * 2 + 1 and index * 2 + 2 for contents
 
-fn part2(numbers: []SnailFishNumber, allocator: *std.mem.Allocator) !usize {
-    var largest: usize = 0;
+    fn parse(source: []const u8) SnailNumber {
+        var result = SnailNumber{ .contents = [_]?u8{null} ** 129 };
 
-    for (numbers) |a, i| {
-        for (numbers) |b, j| {
-            if (i == j)
-                continue;
-            var number = try SnailFishNumber.add(a, b, allocator);
-            defer number.deinit(allocator);
-            largest = std.math.max(largest, number.magnitude());
-        }
-    }
+        var snailIndex: usize = 0;
 
-    return largest;
-}
-
-const SnailFishNumber = struct {
-    entries: [2]SnailFishEntry,
-    filled: u2,
-
-    fn deinit(self: *@This(), allocator: *std.mem.Allocator) void {
-        for (self.entries) |*entry|
-            entry.deinit(allocator);
-    }
-
-    fn normalise(self: *@This(), allocator: *std.mem.Allocator) !void {
-        while (true) {
-            var explodeResult = self.explode(0, allocator);
-            if (!explodeResult.shouldContinue) {
-                continue;
+        var ind: usize = 0;
+        while (source[ind] != '\n') : (ind += 1) {
+            switch (source[ind]) {
+                '[' => snailIndex = snailIndex * 2 + 1,
+                ']' => snailIndex = (snailIndex - 1) / 2,
+                ',' => snailIndex += 1,
+                '0'...'9' => |digit| result.contents[snailIndex] = digit - '0',
+                else => unreachable,
             }
-
-            var splitResult = try self.split(allocator);
-
-            if (explodeResult.shouldContinue and splitResult.shouldContinue) {
-                break;
-            }
-        }
-    }
-
-    fn split(self: *@This(), allocator: *std.mem.Allocator) anyerror!SplitResult {
-        var result = SplitResult{ .value = null, .shouldContinue = true };
-        for (self.entries) |*entry| {
-            var innerResult = try entry.split(allocator);
-            result.shouldContinue = result.shouldContinue and innerResult.shouldContinue;
-            if (innerResult.value) |value| {
-                var left = value / 2;
-                var right = value - left;
-                var inner = try allocator.create(SnailFishNumber);
-                inner.filled = 2;
-                inner.entries[0] = SnailFishEntry{ .value = left };
-                inner.entries[1] = SnailFishEntry{ .value = right };
-                entry.* = SnailFishEntry{ .nested = inner };
-            }
-            if (!result.shouldContinue)
-                break;
         }
 
         return result;
     }
 
-    fn explode(self: *@This(), nesting: usize, allocator: *std.mem.Allocator) ExplodeResult {
-        if (nesting == 4) {
-            return ExplodeResult{ .left = self.entries[0].innerValue(), .right = self.entries[1].innerValue(), .shouldContinue = false, .source = true };
+    fn fill(self: *@This(), base: usize, ind: usize, depth: usize, other: SnailNumber) void {
+        if (depth > 5) {
+            return;
         }
-        var result: ExplodeResult = .{ .left = null, .right = null, .shouldContinue = true, .source = false };
-        for (self.entries) |*entry, i| {
-            var innerResult = entry.explode(nesting, allocator);
-            result.shouldContinue = result.shouldContinue and innerResult.shouldContinue;
-            if (innerResult.source) {
-                entry.deinit(allocator);
-                entry.* = SnailFishEntry{ .value = 0 };
-            }
-            if (innerResult.left) |left| {
-                if (i > 0)
-                    self.entries[i - 1].addValue(.left, left)
-                else
-                    result.left = left;
-            }
-            if (innerResult.right) |right| {
-                if (i + 1 < self.entries.len)
-                    self.entries[i + 1].addValue(.right, right)
-                else
-                    result.right = right;
-            }
-            if (!result.shouldContinue)
-                break;
-        }
+        self.contents[base] = other.contents[ind];
+        self.fill(base * 2 + 1, ind * 2 + 1, depth + 1, other);
+        self.fill(base * 2 + 2, ind * 2 + 2, depth + 1, other);
+    }
+
+    fn add(a: SnailNumber, b: SnailNumber) SnailNumber {
+        var result = SnailNumber{ .contents = [_]?u8{null} ** 129 };
+        result.fill(1, 0, 0, a);
+        result.fill(2, 0, 0, b);
+        result.normalise();
         return result;
     }
 
-    fn addValue(self: *@This(), comptime side: Side, extraValue: usize) void {
-        var ind: usize = switch (side) {
-            .left => 1,
-            .right => 0,
-        };
-        self.entries[ind].addValue(side, extraValue);
-    }
-
-    fn copy(self: @This(), allocator: *std.mem.Allocator) anyerror!SnailFishNumber {
-        var number = SnailFishNumber{ .entries = undefined, .filled = 1 };
-        errdefer number.deinit(allocator);
-
-        for (self.entries) |entry, i| {
-            var entryCopy = try entry.copy(allocator);
-            number.entries[i] = entryCopy;
+    fn addValue(self: *@This(), comptime side: Side, index: usize, value: u8) void {
+        if (self.contents[index]) |*val| {
+            val.* += value;
+        } else {
+            switch (side) {
+                .left => self.addValue(side, index * 2 + 2, value),
+                .right => self.addValue(side, index * 2 + 1, value),
+            }
         }
-
-        return number;
-    }
-
-    fn add(a: SnailFishNumber, b: SnailFishNumber, allocator: *std.mem.Allocator) !SnailFishNumber {
-        var aCopy = try a.copy(allocator);
-        errdefer aCopy.deinit(allocator);
-        var bCopy = try b.copy(allocator);
-        errdefer bCopy.deinit(allocator);
-        var aPointer = try allocator.create(SnailFishNumber);
-        errdefer allocator.destroy(aPointer);
-        aPointer.* = aCopy;
-        var bPointer = try allocator.create(SnailFishNumber);
-        errdefer allocator.destroy(bPointer);
-        bPointer.* = bCopy;
-
-        var number = SnailFishNumber{ .entries = undefined, .filled = 2 };
-        number.entries[0] = SnailFishEntry{ .nested = aPointer };
-        number.entries[1] = SnailFishEntry{ .nested = bPointer };
-        try number.normalise(allocator);
-        return number;
     }
 
     fn print(self: @This()) void {
         self._print(0);
+        std.debug.print("\n", .{});
     }
 
-    fn _print(self: @This(), depth: usize) void {
-        tab(depth);
-        std.debug.print("v\n", .{});
-        for (self.entries) |entry| {
-            entry.print(depth);
-        }
-        tab(depth);
-        std.debug.print("^\n", .{});
-    }
-
-    fn magnitude(self: @This()) usize {
-        return 3 * self.entries[0].magnitude() + 2 * self.entries[1].magnitude();
-    }
-};
-
-const SnailFishEntry = union(enum) {
-    value: usize,
-    nested: *SnailFishNumber,
-
-    fn print(self: @This(), depth: usize) void {
-        switch (self) {
-            .value => |value| {
-                tab(depth);
-                std.debug.print("literal: {}\n", .{value});
-            },
-            .nested => |nested| nested._print(depth + 1),
+    fn _print(self: @This(), index: usize) void {
+        if (self.contents[index]) |value| {
+            std.debug.print("{}", .{value});
+        } else {
+            std.debug.print("[", .{});
+            self._print(index * 2 + 1);
+            std.debug.print(",", .{});
+            self._print(index * 2 + 2);
+            std.debug.print("]", .{});
         }
     }
 
-    fn deinit(self: *@This(), allocator: *std.mem.Allocator) void {
-        switch (self.*) {
-            .value => {},
-            .nested => |nested| {
-                nested.deinit(allocator);
-                allocator.destroy(nested);
-            },
+    fn normalise(self: *@This()) void {
+        self.print();
+        while (true) {
+            while (self.explode(0, 0).explosionDone) {
+                std.debug.print("exploded\n", .{});
+                self.print();
+            }
+            if (!self.split(0))
+                break;
+            std.debug.print("split\n", .{});
+            self.print();
         }
     }
 
-    fn innerValue(self: @This()) usize {
-        return switch (self) {
-            .value => |value| value,
-            .nested => unreachable,
-        };
+    fn explode(self: *@This(), i: usize, depth: usize) ExplodeResult {
+        if (depth == 4 and self.contents[i] == null) {
+            // TODO - attempt to apply the left and right parts, else pass in result
+            std.debug.print("explode - i = {} next={} left = {} right = {}\n", .{ i, self.contents[i + 1], self.contents[i * 2 + 1], self.contents[i * 2 + 2] });
+            return ExplodeResult{ .left = self.contents[i * 2 + 1], .right = self.contents[i * 2 + 2], .explosionDone = true, .source = true };
+        }
+        if (self.contents[i] != null) {
+            return ExplodeResult{ .left = null, .right = null, .explosionDone = false, .source = false };
+        }
+        var result = ExplodeResult{ .left = null, .right = null, .explosionDone = false, .source = false };
+        var leftResult = self.explode(i * 2 + 1, depth + 1);
+        result.explosionDone = result.explosionDone or leftResult.explosionDone;
+        if (leftResult.source) {
+            self.contents[i * 2 + 1] = 0;
+        }
+        if (leftResult.left) |left| {
+            if (i % 2 == 0 and i != 0) {
+                self.addValue(.left, i - 1, left);
+            } else {
+                result.left = left;
+            }
+        }
+        if (leftResult.right) |right| {
+            if (i % 2 == 1) {
+                self.addValue(.right, i + 1, right);
+            } else {
+                result.right = right;
+            }
+        }
+        if (leftResult.explosionDone)
+            return result;
+        var rightResult = self.explode(i * 2 + 2, depth + 1);
+        result.explosionDone = result.explosionDone or rightResult.explosionDone;
+        if (rightResult.source) {
+            self.contents[i * 2 + 2] = 0;
+        }
+        if (rightResult.left) |left| {
+            if (i % 2 == 0) {
+                self.addValue(.left, i - 1, left);
+            } else {
+                result.left = left;
+            }
+        }
+        if (rightResult.right) |right| {
+            if (i % 2 == 1) {
+                self.addValue(.right, i + 1, right);
+            } else {
+                result.right = right;
+            }
+        }
+        _ = "[[[[0,7],4],[[7,8],[0,[6,7]]]],[1,1]]";
+
+        return result;
     }
 
-    fn explode(self: *@This(), nesting: usize, allocator: *std.mem.Allocator) ExplodeResult {
-        return switch (self.*) {
-            .value => ExplodeResult{ .left = null, .right = null, .shouldContinue = true, .source = false },
-            .nested => |nested| nested.explode(nesting + 1, allocator),
-        };
-    }
-
-    fn split(self: *@This(), allocator: *std.mem.Allocator) anyerror!SplitResult {
-        return switch (self.*) {
-            .value => |value| {
-                if (value >= 10) {
-                    return SplitResult{ .value = value, .shouldContinue = false };
-                } else {
-                    return SplitResult{ .value = null, .shouldContinue = true };
-                }
-            },
-            .nested => |nested| try nested.split(allocator),
-        };
-    }
-
-    fn copy(self: @This(), allocator: *std.mem.Allocator) anyerror!SnailFishEntry {
-        return switch (self) {
-            .value => |value| SnailFishEntry{ .value = value },
-            .nested => |nested| {
-                var nestedCopy = try nested.copy(allocator);
-                errdefer nestedCopy.deinit(allocator);
-                var copyP = try allocator.create(SnailFishNumber);
-                copyP.* = nestedCopy;
-                return SnailFishEntry{ .nested = copyP };
-            },
-        };
-    }
-
-    fn addValue(self: *@This(), comptime side: Side, extraValue: usize) void {
-        return switch (self.*) {
-            .value => |*value| value.* += extraValue,
-            .nested => |nested| nested.addValue(side, extraValue),
-        };
-    }
-
-    fn magnitude(self: @This()) usize {
-        return switch (self) {
-            .value => |value| value,
-            .nested => |nested| nested.magnitude(),
-        };
+    fn split(self: *@This(), i: usize) bool {
+        if (self.contents[i]) |value| {
+            if (value >= 10) {
+                var left = value / 2;
+                var right = value - left;
+                self.contents[i] = null;
+                self.contents[i * 2 + 1] = left;
+                self.contents[i * 2 + 2] = right;
+                return true;
+            } else {
+                return false;
+            }
+        }
+        if (self.split(i * 2 + 1)) {
+            return true;
+        } else {
+            return self.split(i * 2 + 2);
+        }
     }
 };
 
 const Side = enum { left, right };
 
-const ExplodeResult = struct { left: ?usize, right: ?usize, shouldContinue: bool, source: bool };
-
-const SplitResult = struct { value: ?usize, shouldContinue: bool };
-
-fn loadSnailFishNumbers(contents: []u8, allocator: *std.mem.Allocator) ![]SnailFishNumber {
-    var numbers = std.ArrayList(SnailFishNumber).init(allocator);
-    errdefer {
-        for (numbers.items) |*snailNumber|
-            snailNumber.deinit(allocator);
-        numbers.deinit();
-    }
-
-    var ind: usize = 1;
-    while (ind < contents.len) {
-        var number = SnailFishNumber{ .entries = undefined, .filled = 0 };
-        errdefer number.deinit(allocator);
-
-        var builder = std.ArrayList(*SnailFishNumber).init(allocator);
-        defer builder.deinit();
-        try builder.append(&number);
-
-        while (contents[ind + 1] != '\n') : (ind += 1) {
-            switch (contents[ind]) {
-                '[' => {
-                    var inner = try allocator.create(SnailFishNumber);
-                    errdefer allocator.destroy(inner);
-                    inner.filled = 0;
-                    builder.items[builder.items.len - 1].entries[builder.items[builder.items.len - 1].filled] = SnailFishEntry{ .nested = inner };
-                    builder.items[builder.items.len - 1].filled += 1;
-                    try builder.append(inner);
-                },
-                ']' => _ = builder.pop(),
-                ',' => {},
-                '0'...'9' => |digit| {
-                    builder.items[builder.items.len - 1].entries[builder.items[builder.items.len - 1].filled] = SnailFishEntry{ .value = digit - '0' };
-                    builder.items[builder.items.len - 1].filled += 1;
-                },
-                else => unreachable,
-            }
-        }
-
-        try numbers.append(number);
-
-        ind += 3;
-    }
-
-    return numbers.toOwnedSlice();
-}
-
-fn tab(count: usize) void {
-    var i: usize = 0;
-    while (i < count) : (i += 1) {
-        std.debug.print("  ", .{});
-    }
-}
+const ExplodeResult = struct { left: ?u8, right: ?u8, explosionDone: bool, source: bool };

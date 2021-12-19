@@ -19,6 +19,7 @@ const day15 = @import("./days/day15.zig");
 const day16 = @import("./days/day16.zig");
 const day17 = @import("./days/day17.zig");
 const day18 = @import("./days/day18.zig");
+const day19 = @import("./days/day19.zig");
 const util = @import("util.zig");
 
 const Contents = util.Contents;
@@ -43,24 +44,25 @@ pub fn main() !void {
 
     var duration: i128 = 0;
 
-    duration += try day01.run(contents.day01, &writer);
-    duration += try day02.run(contents.day02, &writer);
-    duration += try day03.run(contents.day03, &writer, allocator);
-    duration += try day04.run(contents.day04, &writer, allocator);
-    duration += try day05.run(contents.day05, &writer, allocator);
-    duration += try day06.run(contents.day06, &writer);
-    duration += try day07.run(contents.day07, &writer, allocator);
-    duration += try day08.run(contents.day08, &writer, allocator);
-    duration += try day09.run(contents.day09, &writer);
-    duration += try day10.run(contents.day10, &writer);
-    duration += try day11.run(contents.day11, &writer);
-    duration += try day12.run(contents.day12, &writer, allocator);
-    duration += try day13.run(contents.day13, &writer, allocator);
-    duration += try day14.run(contents.day14, &writer, allocator);
-    duration += try day15.run(contents.day15, &writer, allocator);
-    duration += try day16.run(contents.day16, &writer, allocator);
-    duration += try day17.run(contents.day17, &writer);
-    duration += try day18.run(contents.day18, &writer, allocator);
+    // duration += try day01.run(contents.day01, &writer);
+    // duration += try day02.run(contents.day02, &writer);
+    // duration += try day03.run(contents.day03, &writer, allocator);
+    // duration += try day04.run(contents.day04, &writer, allocator);
+    // duration += try day05.run(contents.day05, &writer, allocator);
+    // duration += try day06.run(contents.day06, &writer);
+    // duration += try day07.run(contents.day07, &writer, allocator);
+    // duration += try day08.run(contents.day08, &writer, allocator);
+    // duration += try day09.run(contents.day09, &writer);
+    // duration += try day10.run(contents.day10, &writer);
+    // duration += try day11.run(contents.day11, &writer);
+    // duration += try day12.run(contents.day12, &writer, allocator);
+    // duration += try day13.run(contents.day13, &writer, allocator);
+    // duration += try day14.run(contents.day14, &writer, allocator);
+    // duration += try day15.run(contents.day15, &writer, allocator);
+    // duration += try day16.run(contents.day16, &writer, allocator);
+    // duration += try day17.run(contents.day17, &writer);
+    // duration += try day18.run(contents.day18, &writer, allocator);
+    duration += try day19.run(contents.day19, &writer, allocator);
 
     try writer.print("aoc ran in:\n", .{});
     try writer.print("\t{d}ms\n", .{@divFloor(duration, 1_000_000)});
