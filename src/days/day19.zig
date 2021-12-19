@@ -8,7 +8,7 @@ pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
     var scanners = try parseScanners(contents, allocator);
     defer {
         for (scanners) |*scanner|
-            scanner.readings.deinit();
+            allocator.free(scanner.readings);
         allocator.free(scanners);
     }
 
@@ -46,39 +46,47 @@ fn solve(scanners: []Scanner, allocator: *std.mem.Allocator) !SolveResult {
     var referenceGrid = util.HashSet(Vec3).init(allocator);
     defer referenceGrid.deinit();
 
-    for (solved.readings.items) |reading|
+    var compared = util.HashSet([2]usize).init(allocator);
+    defer compared.deinit();
+
+    for (solved.readings) |reading|
         try referenceGrid.insert(reading[0]);
 
     while (unsolvedScanner.items.len != 0) {
         while (unsolvedScanner.popOrNull()) |unsolved| {
+            var knownIt = knownPostions.iterator();
+            block: while (knownIt.next()) |knownScanner| {
+                if (!try compared.insertCheck([2]usize{knownScanner.key_ptr.*.number, unsolved.number}))
+                    continue;
+                
+                var rotation: usize = 0;
+                while (rotation < 24) : (rotation += 1) {
+                    var magnitudes = std.AutoHashMap(i32, MagnitudeMapVal).init(allocator);
+                    defer magnitudes.deinit();
 
-            var rotation: usize = 0;
-            block: while (rotation < 24) : (rotation += 1) {
-                var magnitudes = std.AutoHashMap(i32, MagnitudeMapVal).init(allocator);
-                defer magnitudes.deinit();
-
-                for (unsolved.readings.items) |reading| {
-                    var rot = reading[rotation];
-                    var referenceIt = referenceGrid.iterator();
-                    while (referenceIt.next()) |referenceCoord| {
-                        var mag = referenceCoord.sub(rot).magnitude();
-                        var entry = try magnitudes.getOrPut(mag);
-                        if (!entry.found_existing)
-                            entry.value_ptr.* = MagnitudeMapVal{ .count = 0, .last = null };
-                        entry.value_ptr.count += 1;
-                        entry.value_ptr.last = Pair{.a = referenceCoord.*, .b = rot};
+                    for (unsolved.readings) |reading| {
+                        var rot = reading[rotation];
+                        for (knownScanner.key_ptr.*.readings) |_knownReading| {
+                            var knownReading = _knownReading[knownScanner.value_ptr.rotation].add(knownScanner.value_ptr.referenceGridDelta);
+                            var mag = knownReading.add(knownScanner.value_ptr.referenceGridDelta).sub(rot).magnitude();
+                            var entry = try magnitudes.getOrPut(mag);
+                            if (!entry.found_existing)
+                                entry.value_ptr.* = MagnitudeMapVal{ .count = 0, .last = null };
+                            entry.value_ptr.count += 1;
+                            entry.value_ptr.last = Pair{.a = knownReading, .b = rot};
+                        }
                     }
-                }
 
-                var magIt = magnitudes.iterator();
-                while (magIt.next()) |m| {
-                    if ( m.value_ptr.count >= 12) {
-                        var coords = m.value_ptr.last.?;
-                        var newReferenceGridDelta = coords.a.sub(coords.b);
-                        try knownPostions.put(unsolved, KnownPosition{ .rotation = rotation, .referenceGridDelta = newReferenceGridDelta });
-                        for (unsolved.readings.items) |reading|
-                            try referenceGrid.insert(reading[rotation].add(newReferenceGridDelta));
-                        break :block;
+                    var magIt = magnitudes.iterator();
+                    while (magIt.next()) |m| {
+                        if ( m.value_ptr.count >= 12) {
+                            var coords = m.value_ptr.last.?;
+                            var newReferenceGridDelta = coords.a.sub(coords.b);
+                            try knownPostions.put(unsolved, KnownPosition{ .rotation = rotation, .referenceGridDelta = newReferenceGridDelta });
+                            for (unsolved.readings) |reading|
+                                try referenceGrid.insert(reading[rotation].add(newReferenceGridDelta));
+                            break :block;
+                        }
                     }
                 }
             } else {
@@ -201,13 +209,13 @@ const Vec3 = struct {
     }
 };
 
-const Scanner = struct { number: usize, readings: std.ArrayList([24]Vec3) };
+const Scanner = struct { number: usize, readings: [][24]Vec3 };
 
 fn parseScanners(contents: []u8, allocator: *std.mem.Allocator) ![]Scanner {
     var scanners = std.ArrayList(Scanner).init(allocator);
     errdefer {
         for (scanners.items) |*scanner|
-            scanner.readings.deinit();
+            allocator.free(scanner.readings);
         scanners.deinit();
     }
 
@@ -216,8 +224,9 @@ fn parseScanners(contents: []u8, allocator: *std.mem.Allocator) ![]Scanner {
         ind += 12;
         var size: usize = undefined;
 
-        var scanner: Scanner = .{ .number = undefined, .readings = std.ArrayList([24]Vec3).init(allocator) };
-        errdefer scanner.readings.deinit();
+        var scanner: Scanner = undefined;
+        var readings = std.ArrayList([24]Vec3).init(allocator);
+        errdefer readings.deinit();
         util.toInt(usize, contents[ind..], &scanner.number, &size);
         ind += size + 5;
         while (ind + 1 < contents.len and contents[ind] != '\n') {
@@ -228,9 +237,10 @@ fn parseScanners(contents: []u8, allocator: *std.mem.Allocator) ![]Scanner {
             ind += size + 1;
             util.toSignedInt(i32, contents[ind..], &scanResult.z, &size);
             ind += size + 1;
-            try scanner.readings.append(scanResult.rotations());
+            try readings.append(scanResult.rotations());
         }
         ind += 1;
+        scanner.readings = readings.toOwnedSlice();
         try scanners.append(scanner);
     }
 
