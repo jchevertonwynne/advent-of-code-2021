@@ -66,7 +66,7 @@ pub const Contents = struct {
         errdefer allocator.free(self.day17);
         self.day18 = try dir.readFileAlloc(allocator, "files/18.txt", std.math.maxInt(usize));
         errdefer allocator.free(self.day18);
-        self.day19 = try dir.readFileAlloc(allocator, "files/19_2.txt", std.math.maxInt(usize));
+        self.day19 = try dir.readFileAlloc(allocator, "files/19.txt", std.math.maxInt(usize));
         errdefer allocator.free(self.day19);
 
         return self;
