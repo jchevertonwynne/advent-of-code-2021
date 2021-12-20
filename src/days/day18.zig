@@ -22,7 +22,7 @@ fn part1(numbers: []SnailNumber) usize {
     var number = numbers[0];
     for (numbers[1..]) |n|
         number = SnailNumber.add(number, n);
-    
+
     return number.magnitude();
 }
 fn part2(numbers: []SnailNumber) usize {
@@ -64,7 +64,7 @@ const SnailNumber = struct {
     }
 
     fn _magnitude(self: @This(), i: usize) usize {
-        if (self.contents[i])  |val|
+        if (self.contents[i]) |val|
             return val;
         return 3 * self._magnitude(i * 2 + 1) + 2 * self._magnitude(i * 2 + 2);
     }
@@ -115,13 +115,17 @@ const SnailNumber = struct {
 
     fn normalise(self: *@This()) void {
         while (true) {
-            while (self.explode(0, 0).explosionDone) {}
-            if (!self.split(0))
+            while (self.explode().explosionDone) {}
+            if (!self.split())
                 break;
         }
     }
 
-    fn explode(self: *@This(), i: usize, depth: usize) ExplodeResult {
+    fn explode(self: *@This()) ExplodeResult {
+        return self._explode(0, 0);
+    }
+
+    fn _explode(self: *@This(), i: usize, depth: usize) ExplodeResult {
         if (depth == 4 and self.contents[i] == null) {
             var left: ?u8 = self.contents[i * 2 + 1];
             if (i % 2 == 0) { // righthand branch
@@ -141,7 +145,7 @@ const SnailNumber = struct {
             return ExplodeResult{ .left = null, .right = null, .explosionDone = false, .source = false };
         }
         var result = ExplodeResult{ .left = null, .right = null, .explosionDone = false, .source = false };
-        var leftResult = self.explode(i * 2 + 1, depth + 1);
+        var leftResult = self._explode(i * 2 + 1, depth + 1);
         result.explosionDone = result.explosionDone or leftResult.explosionDone;
         if (leftResult.source) {
             self.contents[i * 2 + 1] = 0;
@@ -162,7 +166,7 @@ const SnailNumber = struct {
         }
         if (leftResult.explosionDone)
             return result;
-        var rightResult = self.explode(i * 2 + 2, depth + 1);
+        var rightResult = self._explode(i * 2 + 2, depth + 1);
         result.explosionDone = result.explosionDone or rightResult.explosionDone;
         if (rightResult.source) {
             self.contents[i * 2 + 2] = 0;
@@ -185,7 +189,11 @@ const SnailNumber = struct {
         return result;
     }
 
-    fn split(self: *@This(), i: usize) bool {
+    fn split(self: *@This()) bool {
+        return self._split(0);
+    }
+
+    fn _split(self: *@This(), i: usize) bool {
         if (self.contents[i]) |value| {
             if (value >= 10) {
                 var left = value / 2;
@@ -198,10 +206,10 @@ const SnailNumber = struct {
                 return false;
             }
         }
-        if (self.split(i * 2 + 1)) {
+        if (self._split(i * 2 + 1)) {
             return true;
         } else {
-            return self.split(i * 2 + 2);
+            return self._split(i * 2 + 2);
         }
     }
 };
@@ -219,7 +227,7 @@ fn loadNumbers(contents: []u8, allocator: *std.mem.Allocator) ![]SnailNumber {
         var start = ind;
         while (contents[ind] != '\n')
             ind += 1;
-        try numbers.append(SnailNumber.parse(contents[start..ind + 1]));
+        try numbers.append(SnailNumber.parse(contents[start .. ind + 1]));
 
         ind += 1;
     }
