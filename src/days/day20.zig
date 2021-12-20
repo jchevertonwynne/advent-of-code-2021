@@ -8,8 +8,8 @@ pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
     var image = try loadImage(contents, allocator);
     defer image.deinit();
 
-    var p1: usize = try part1(image, allocator);
-    var p2: usize = 0;
+    var p1: usize = try solve(image, allocator, 2);
+    var p2: usize = try solve(image, allocator, 50);
 
     var duration = std.time.nanoTimestamp() - start;
 
@@ -18,13 +18,11 @@ pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
     return duration;
 }
 
-fn part1(image: Image, allocator: *std.mem.Allocator) !usize {
+fn solve(image: Image, allocator: *std.mem.Allocator, repeats: usize) !usize {
     var pixels = std.AutoHashMap(Point, u8).init(allocator);
     defer pixels.deinit();
     var pixelsSwap = std.AutoHashMap(Point, u8).init(allocator);
     defer pixelsSwap.deinit();
-
-    
 
     var minX: isize = 0;
     var minY: isize = 0;
@@ -39,22 +37,14 @@ fn part1(image: Image, allocator: *std.mem.Allocator) !usize {
             maxY = std.math.max(maxX, px.key_ptr.j);
         }
     }
+    var infinite: u8 = '.';
 
     var repeat: usize = 0;
-    while (repeat < 2) : (repeat += 1) {
+    while (repeat < repeats) : (repeat += 1) {
         pixelsSwap.clearRetainingCapacity();
-
-        var count: usize = 0;
-        var it = pixels.iterator();
-        while (it.next()) |px| {
-            if (px.value_ptr.* == '#')
-                count += 1;
-        }
-
-        std.debug.print("there are {} lit pixels\n", .{count});
-        var x: isize = minX - 1;
+        var x = minX - 1;
         while (x <= maxX + 1) : (x += 1) {
-            var y: isize = minY - 1;
+            var y = minY - 1;
             while (y <= maxY + 1) : (y += 1) {
                 var number: usize = 0;
 
@@ -64,12 +54,11 @@ fn part1(image: Image, allocator: *std.mem.Allocator) !usize {
                     while (ix <= x + 1) : (ix += 1) {
                         var entry = try pixels.getOrPut(Point{ .i = ix, .j = iy });
                         if (!entry.found_existing)
-                            entry.value_ptr.* = '.';
+                            entry.value_ptr.* = infinite;
                         number <<= 1;
                         number += @as(usize, if (entry.value_ptr.* == '.') 0 else 1);
                     }
                 }
-                std.debug.print("looking up pixel number {} - found {c}\n", .{number, image.lookupTable[number]});
                 try pixelsSwap.put(Point{ .i = x, .j = y }, image.lookupTable[number]);
             }
         }
@@ -79,6 +68,7 @@ fn part1(image: Image, allocator: *std.mem.Allocator) !usize {
         minY -= 1;
         maxX += 1;
         maxY += 1;
+        infinite = if (infinite == '.') image.lookupTable[0] else image.lookupTable[511];
     }
 
     var result: usize = 0;
