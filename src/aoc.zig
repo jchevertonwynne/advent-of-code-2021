@@ -62,9 +62,9 @@ pub fn main() !void {
     // duration += try day15.run(contents.day15, &writer, allocator);
     // duration += try day16.run(contents.day16, &writer, allocator);
     // duration += try day17.run(contents.day17, &writer);
-    // duration += try day18.run(contents.day18, &writer, allocator);
+    duration += try day18.run(contents.day18, &writer, allocator);
     // duration += try day19.run(contents.day19, &writer, allocator);
-    duration += try day20.run(contents.day20, &writer, allocator);
+    // duration += try day20.run(contents.day20, &writer, allocator);
 
     try writer.print("aoc ran in:\n", .{});
     try writer.print("\t{d}ms\n", .{@divFloor(duration, 1_000_000)});
