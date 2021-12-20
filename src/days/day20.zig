@@ -5,7 +5,7 @@ const util = @import("../util.zig");
 pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
     var start = std.time.nanoTimestamp();
 
-    var image = try loadImage(contents, allocator);
+    var image = try Image.load(contents, allocator);
     defer image.deinit();
 
     var p1: usize = try solve(image, allocator, 2);
@@ -52,11 +52,9 @@ fn solve(image: Image, allocator: *std.mem.Allocator, repeats: usize) !usize {
                 while (iy <= y + 1) : (iy += 1) {
                     var ix = x - 1;
                     while (ix <= x + 1) : (ix += 1) {
-                        var entry = try pixels.getOrPut(Point{ .i = ix, .j = iy });
-                        if (!entry.found_existing)
-                            entry.value_ptr.* = infinite;
+                        var val = pixels.get(Point{ .i = ix, .j = iy }) orelse infinite;
                         number <<= 1;
-                        number += @as(usize, if (entry.value_ptr.* == '.') 0 else 1);
+                        number += @boolToInt(val == '#');
                     }
                 }
                 try pixelsSwap.put(Point{ .i = x, .j = y }, image.lookupTable[number]);
@@ -90,32 +88,32 @@ const Image = struct {
     fn deinit(self: *@This()) void {
         self.pixels.deinit();
     }
-};
 
-fn loadImage(contents: []u8, allocator: *std.mem.Allocator) !Image {
-    var result: Image = undefined;
-    for (result.lookupTable) |*t, i|
-        t.* = contents[i];
+    fn load(contents: []u8, allocator: *std.mem.Allocator) !Image {
+        var result: Image = undefined;
+        for (result.lookupTable) |*t, i|
+            t.* = contents[i];
 
-    result.pixels = std.AutoHashMap(Point, u8).init(allocator);
-    errdefer result.pixels.deinit();
+        result.pixels = std.AutoHashMap(Point, u8).init(allocator);
+        errdefer result.pixels.deinit();
 
-    var ind: usize = 514;
-    var line: isize = 0;
-    var lineInd: isize = 0;
-    while (ind < contents.len) : (ind += 1) {
-        switch (contents[ind]) {
-            '#', '.' => |char| {
-                try result.pixels.put(Point{ .i = lineInd, .j = line }, char);
-                lineInd += 1;
-            },
-            '\n' => {
-                line += 1;
-                lineInd = 0;
-            },
-            else => unreachable,
+        var ind: usize = 514;
+        var line: isize = 0;
+        var lineInd: isize = 0;
+        while (ind < contents.len) : (ind += 1) {
+            switch (contents[ind]) {
+                '#', '.' => |char| {
+                    try result.pixels.put(Point{ .i = lineInd, .j = line }, char);
+                    lineInd += 1;
+                },
+                '\n' => {
+                    line += 1;
+                    lineInd = 0;
+                },
+                else => unreachable,
+            }
         }
-    }
 
-    return result;
-}
+        return result;
+    }
+};
