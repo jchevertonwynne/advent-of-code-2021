@@ -20,6 +20,7 @@ const day16 = @import("./days/day16.zig");
 const day17 = @import("./days/day17.zig");
 const day18 = @import("./days/day18.zig");
 const day19 = @import("./days/day19.zig");
+const day20 = @import("./days/day20.zig");
 const util = @import("util.zig");
 
 const Contents = util.Contents;
@@ -62,7 +63,8 @@ pub fn main() !void {
     // duration += try day16.run(contents.day16, &writer, allocator);
     // duration += try day17.run(contents.day17, &writer);
     // duration += try day18.run(contents.day18, &writer, allocator);
-    duration += try day19.run(contents.day19, &writer, allocator);
+    // duration += try day19.run(contents.day19, &writer, allocator);
+    duration += try day20.run(contents.day20, &writer, allocator);
 
     try writer.print("aoc ran in:\n", .{});
     try writer.print("\t{d}ms\n", .{@divFloor(duration, 1_000_000)});
