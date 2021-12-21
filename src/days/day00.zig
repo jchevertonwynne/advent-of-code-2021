@@ -5,8 +5,6 @@ const util = @import("../util.zig");
 pub fn run(contents: []u8, out: anytype, allocator: std.mem.Allocator) !i128 {
     var start = std.time.nanoTimestamp();
 
-    // parse input here
-
     var p1: usize = 0;
     var p2: usize = 0;
 
