@@ -38,10 +38,10 @@ fn part2(numbers: []SnailNumber) usize {
 }
 
 const SnailNumber = struct {
-    contents: [65]?u8, // if null - check index * 2 + 1 and index * 2 + 2 for contents
+    contents: [64]?u8, // if null - check index * 2 + 1 and index * 2 + 2 for contents
 
     fn parse(source: []const u8) SnailNumber {
-        var result = SnailNumber{ .contents = [_]?u8{null} ** 65 };
+        var result = SnailNumber{ .contents = [_]?u8{null} ** 64 };
 
         var snailIndex: usize = 0;
 
@@ -51,7 +51,7 @@ const SnailNumber = struct {
                 '[' => snailIndex = snailIndex * 2 + 1,
                 ']' => snailIndex = (snailIndex - 1) / 2,
                 ',' => snailIndex += 1,
-                '0'...'9' => |digit| result.contents[snailIndex] = digit - '0',
+                '0'...'9' => |digit| result.contents[snailIndex - 1] = digit - '0',
                 else => unreachable,
             }
         }
@@ -60,27 +60,30 @@ const SnailNumber = struct {
     }
 
     fn magnitude(self: @This()) usize {
-        return self._magnitude(0);
+        return self._magnitude(0, 0);
     }
 
-    fn _magnitude(self: @This(), comptime i: usize) usize {
-        if (i >= self.contents.len)
+    fn _magnitude(self: @This(), comptime i: usize, comptime depth: usize) usize {
+        if (depth > 4)
             unreachable;
-        if (self.contents[i]) |val|
-            return val;
-        return 3 * self._magnitude(i * 2 + 1) + 2 * self._magnitude(i * 2 + 2);
+        if (i != 0) {
+            if (self.contents[i - 1]) |val|
+                return val;
+        }
+        return 3 * self._magnitude(i * 2 + 1, depth + 1) + 2 * self._magnitude(i * 2 + 2, depth + 1);
     }
 
     fn fill(self: *@This(), comptime base: usize, comptime ind: usize, comptime depth: usize, other: SnailNumber) void {
         if (depth > 4)
             return;
-        self.contents[base] = other.contents[ind];
+        if (ind != 0)
+            self.contents[base - 1] = other.contents[ind - 1];
         self.fill(base * 2 + 1, ind * 2 + 1, depth + 1, other);
         self.fill(base * 2 + 2, ind * 2 + 2, depth + 1, other);
     }
 
     fn add(a: SnailNumber, b: SnailNumber) SnailNumber {
-        var result = SnailNumber{ .contents = [_]?u8{null} ** 65 };
+        var result = SnailNumber{ .contents = [_]?u8{null} ** 64 };
         result.fill(1, 0, 0, a);
         result.fill(2, 0, 0, b);
         result.normalise();
@@ -90,7 +93,7 @@ const SnailNumber = struct {
     fn addValue(self: *@This(), comptime side: Side, comptime index: usize, value: u8) void {
         if (index >= self.contents.len)
             unreachable;
-        if (self.contents[index]) |*val| {
+        if (self.contents[index - 1]) |*val| {
             val.* += value;
         } else {
             switch (side) {
@@ -106,7 +109,7 @@ const SnailNumber = struct {
     }
 
     fn _print(self: @This(), index: usize) void {
-        if (self.contents[index]) |value| {
+        if (self.contents[index - 1]) |value| {
             std.debug.print("{}", .{value});
         } else {
             std.debug.print("[", .{});
@@ -132,14 +135,14 @@ const SnailNumber = struct {
     fn _explode(self: *@This(), comptime i: usize, comptime depth: usize) ExplodeResult {
         if (depth > 4)
             unreachable;
-        if (depth == 4 and self.contents[i] == null) {
-            var left: ?u8 = self.contents[i * 2 + 1];
+        if (depth == 4 and self.contents[i - 1] == null) {
+            var left = self.contents[i * 2 + 1 - 1];
             if (i % 2 == 0) { // righthand branch
                 self.addValue(.right, i - 1, left.?);
                 left = null;
             }
 
-            var right: ?u8 = self.contents[i * 2 + 2];
+            var right = self.contents[i * 2 + 2 - 1];
             if (i % 2 == 1) { //lefthand branch
                 self.addValue(.right, i + 1, right.?);
                 right = null;
@@ -147,14 +150,14 @@ const SnailNumber = struct {
 
             return ExplodeResult{ .left = left, .right = right, .explosionDone = true, .source = true };
         }
-        if (self.contents[i] != null) {
+        if (i != 0 and self.contents[i - 1] != null) {
             return ExplodeResult{ .left = null, .right = null, .explosionDone = false, .source = false };
         }
         var result = ExplodeResult{ .left = null, .right = null, .explosionDone = false, .source = false };
         var leftResult = self._explode(i * 2 + 1, depth + 1);
         result.explosionDone = result.explosionDone or leftResult.explosionDone;
         if (leftResult.source) {
-            self.contents[i * 2 + 1] = 0;
+            self.contents[i * 2 + 1 - 1] = 0;
         }
         if (leftResult.left) |left| {
             if (i % 2 == 0 and i != 0) {
@@ -175,7 +178,7 @@ const SnailNumber = struct {
         var rightResult = self._explode(i * 2 + 2, depth + 1);
         result.explosionDone = result.explosionDone or rightResult.explosionDone;
         if (rightResult.source) {
-            self.contents[i * 2 + 2] = 0;
+            self.contents[i * 2 + 2 - 1] = 0;
         }
         if (rightResult.left) |left| {
             if (i != 0 and i % 2 == 0) {
@@ -196,29 +199,27 @@ const SnailNumber = struct {
     }
 
     fn split(self: *@This()) bool {
-        return self._split(0);
+        return self._split(0, 0);
     }
 
-    fn _split(self: *@This(), comptime i: usize) bool {
-        if (i >= self.contents.len / 2)
+    fn _split(self: *@This(), comptime i: usize, comptime depth: usize) bool {
+        if (depth > 4)
             unreachable;
-        if (self.contents[i]) |value| {
-            if (value >= 10) {
-                var left = value / 2;
-                var right = value - left;
-                self.contents[i] = null;
-                self.contents[i * 2 + 1] = left;
-                self.contents[i * 2 + 2] = right;
-                return true;
-            } else {
-                return false;
+        if (i != 0) {
+            if (self.contents[i - 1]) |value| {
+                if (value >= 10) {
+                    var left = value / 2;
+                    var right = value - left;
+                    self.contents[i - 1] = null;
+                    self.contents[i * 2 + 1 - 1] = left;
+                    self.contents[i * 2 + 2 - 1] = right;
+                    return true;
+                } else {
+                    return false;
+                }
             }
         }
-        if (self._split(i * 2 + 1)) {
-            return true;
-        } else {
-            return self._split(i * 2 + 2);
-        }
+        return self._split(i * 2 + 1, depth + 1) or self._split(i * 2 + 2, depth + 1);
     }
 };
 
