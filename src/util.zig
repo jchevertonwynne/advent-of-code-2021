@@ -3,7 +3,7 @@ const std = @import("std");
 pub const Contents = struct {
     const Self = @This();
 
-    allocator: *std.mem.Allocator,
+    allocator: std.mem.Allocator,
     day01: []u8,
     day02: []u8,
     day03: []u8,
@@ -25,7 +25,7 @@ pub const Contents = struct {
     day19: []u8,
     day20: []u8,
 
-    pub fn load(allocator: *std.mem.Allocator) !Self {
+    pub fn load(allocator: std.mem.Allocator) !Self {
         var dir = std.fs.cwd();
 
         var self: Self = undefined;
@@ -107,7 +107,7 @@ pub fn HashSet(comptime T: type) type {
 
         map: mapType,
 
-        pub fn init(allocator: *std.mem.Allocator) Self {
+        pub fn init(allocator: std.mem.Allocator) Self {
             return .{ .map = mapType.init(allocator) };
         }
 

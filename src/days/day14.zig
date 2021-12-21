@@ -2,7 +2,7 @@ const std = @import("std");
 
 const util = @import("../util.zig");
 
-pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
+pub fn run(contents: []u8, out: anytype, allocator: std.mem.Allocator) !i128 {
     var start = std.time.nanoTimestamp();
 
     var polymers = try loadPolymers(contents, allocator);
@@ -19,7 +19,7 @@ pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
     return duration;
 }
 
-fn solve(polymers: Polymers, allocator: *std.mem.Allocator, p1: *usize, p2: *usize) !void {
+fn solve(polymers: Polymers, allocator: std.mem.Allocator, p1: *usize, p2: *usize) !void {
     var currentPolymer = std.AutoHashMap([2]u8, usize).init(allocator);
     defer currentPolymer.deinit();
     var buildingPolymer = std.AutoHashMap([2]u8, usize).init(allocator);
@@ -86,7 +86,7 @@ const Polymers = struct {
     }
 };
 
-fn loadPolymers(contents: []u8, allocator: *std.mem.Allocator) !Polymers {
+fn loadPolymers(contents: []u8, allocator: std.mem.Allocator) !Polymers {
     var ind: usize = 0;
     while (contents[ind] != '\n')
         ind += 1;

@@ -2,7 +2,7 @@ const std = @import("std");
 
 const util = @import("../util.zig");
 
-pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
+pub fn run(contents: []u8, out: anytype, allocator: std.mem.Allocator) !i128 {
     var start = std.time.nanoTimestamp();
 
     var entries = try Entry.loadEntries(contents, allocator);
@@ -153,7 +153,7 @@ const Entry = struct {
     patterns: [10][]u8,
     outputs: [4][]u8,
 
-    fn loadEntries(contents: []u8, allocator: *std.mem.Allocator) ![]Entry {
+    fn loadEntries(contents: []u8, allocator: std.mem.Allocator) ![]Entry {
         var entries = std.ArrayList(Entry).init(allocator);
         errdefer entries.deinit();
 

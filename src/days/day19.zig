@@ -2,7 +2,7 @@ const std = @import("std");
 
 const util = @import("../util.zig");
 
-pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
+pub fn run(contents: []u8, out: anytype, allocator: std.mem.Allocator) !i128 {
     var start = std.time.nanoTimestamp();
 
     var scanners = try parseScanners(contents, allocator);
@@ -18,7 +18,7 @@ pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
 
     var duration = std.time.nanoTimestamp() - start;
 
-    try util.writeResponse(out, 1, p1, p2, duration);
+    try util.writeResponse(out, 19, p1, p2, duration);
 
     return duration;
 }
@@ -28,7 +28,7 @@ const Pair = struct { a: Vec3, b: Vec3 };
 const SolveResult = struct { part1: usize, part2: i32 };
 const MagnitudeMapVal = struct { count: usize, last: ?Pair };
 
-fn solve(scanners: []Scanner, allocator: *std.mem.Allocator) !SolveResult {
+fn solve(scanners: []Scanner, allocator: std.mem.Allocator) !SolveResult {
     var knownPostions = std.AutoHashMap(*Scanner, KnownPosition).init(allocator);
     defer knownPostions.deinit();
 
@@ -204,7 +204,7 @@ const Vec3 = struct {
 
 const Scanner = struct { number: usize, readings: std.ArrayList([24]Vec3) };
 
-fn parseScanners(contents: []u8, allocator: *std.mem.Allocator) ![]Scanner {
+fn parseScanners(contents: []u8, allocator: std.mem.Allocator) ![]Scanner {
     var scanners = std.ArrayList(Scanner).init(allocator);
     errdefer {
         for (scanners.items) |*scanner|

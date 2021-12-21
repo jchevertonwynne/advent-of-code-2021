@@ -2,7 +2,7 @@ const std = @import("std");
 
 const util = @import("../util.zig");
 
-pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
+pub fn run(contents: []u8, out: anytype, allocator: std.mem.Allocator) !i128 {
     var start = std.time.nanoTimestamp();
 
     var instructions = try Instructions.load(contents, allocator);
@@ -19,7 +19,7 @@ pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
     return duration;
 }
 
-fn solve(instructions: Instructions, allocator: *std.mem.Allocator, p1: *usize, p2: *[6][40]u8) !void {
+fn solve(instructions: Instructions, allocator: std.mem.Allocator, p1: *usize, p2: *[6][40]u8) !void {
     var dots = util.HashSet(Point).init(allocator);
     defer dots.deinit();
     for (instructions.dots) |dot|
@@ -81,7 +81,7 @@ const Instructions = struct {
     dots: []Point,
     folds: []Fold,
 
-    fn load(contents: []u8, allocator: *std.mem.Allocator) !Instructions {
+    fn load(contents: []u8, allocator: std.mem.Allocator) !Instructions {
         var dots = std.ArrayList(Point).init(allocator);
         defer dots.deinit();
         var folds = std.ArrayList(Fold).init(allocator);
@@ -110,7 +110,7 @@ const Instructions = struct {
         return Instructions{ .dots = dots.toOwnedSlice(), .folds = folds.toOwnedSlice() };
     }
 
-    fn deinit(self: *@This(), allocator: *std.mem.Allocator) void {
+    fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
         allocator.free(self.dots);
         allocator.free(self.folds);
     }

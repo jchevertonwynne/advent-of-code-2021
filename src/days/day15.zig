@@ -2,7 +2,7 @@ const std = @import("std");
 
 const util = @import("../util.zig");
 
-pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
+pub fn run(contents: []u8, out: anytype, allocator: std.mem.Allocator) !i128 {
     var start = std.time.nanoTimestamp();
 
     var p1: usize = undefined;
@@ -16,7 +16,7 @@ pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
     return duration;
 }
 
-fn solve(comptime world_size: usize, contents: []u8, allocator: *std.mem.Allocator, p1: *usize, p2: *usize) !void {
+fn solve(comptime world_size: usize, contents: []u8, allocator: std.mem.Allocator, p1: *usize, p2: *usize) !void {
     var world = loadWorld(world_size, contents);
     p1.* = try part1(world_size, world, allocator);
     p2.* = try part2(world_size, world, allocator);
@@ -28,13 +28,13 @@ const QueuePoint = struct {
     point: Point,
     lowestNeighbourScore: usize,
 
-    fn compare(a: QueuePoint, b: QueuePoint) std.math.Order {
+    fn compare(_: void, a: QueuePoint, b: QueuePoint) std.math.Order {
         return std.math.order(a.lowestNeighbourScore, b.lowestNeighbourScore);
     }
 };
 
-fn part1(comptime world_size: usize, world: World(world_size), allocator: *std.mem.Allocator) !usize {
-    var queue = std.PriorityQueue(QueuePoint, QueuePoint.compare).init(allocator);
+fn part1(comptime world_size: usize, world: World(world_size), allocator: std.mem.Allocator) !usize {
+    var queue = std.PriorityQueue(QueuePoint, void, QueuePoint.compare).init(allocator, {});
     defer queue.deinit();
     try queue.add(QueuePoint{ .point = Point{ .i = 0, .j = 0 }, .lowestNeighbourScore = 0 });
 
@@ -71,7 +71,7 @@ fn part1(comptime world_size: usize, world: World(world_size), allocator: *std.m
     unreachable;
 }
 
-fn part2(comptime world_size: usize, world: World(world_size), allocator: *std.mem.Allocator) !usize {
+fn part2(comptime world_size: usize, world: World(world_size), allocator: std.mem.Allocator) !usize {
     var largerWorld: World(world_size * 5) = undefined;
     for (world) |row, j| {
         for (row) |cell, i|

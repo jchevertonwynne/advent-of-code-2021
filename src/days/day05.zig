@@ -3,7 +3,7 @@ const builtin = @import("builtin");
 
 const util = @import("../util.zig");
 
-pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
+pub fn run(contents: []u8, out: anytype, allocator: std.mem.Allocator) !i128 {
     var start = std.time.nanoTimestamp();
 
     var lines = try loadLines(contents, allocator);
@@ -20,7 +20,7 @@ pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
     return duration;
 }
 
-fn loadLines(contents: []u8, allocator: *std.mem.Allocator) ![]Line {
+fn loadLines(contents: []u8, allocator: std.mem.Allocator) ![]Line {
     var lines = std.ArrayList(Line).init(allocator);
     errdefer lines.deinit();
 
@@ -46,7 +46,7 @@ fn loadLines(contents: []u8, allocator: *std.mem.Allocator) ![]Line {
     return lines.toOwnedSlice();
 }
 
-fn solve(lines: []Line, allocator: *std.mem.Allocator, p1: *usize, p2: *usize) !void {
+fn solve(lines: []Line, allocator: std.mem.Allocator, p1: *usize, p2: *usize) !void {
     var intersections1 = util.HashSet(Point).init(allocator);
     defer intersections1.deinit();
     var intersections2 = util.HashSet(Point).init(allocator);
@@ -167,7 +167,7 @@ const Line = struct {
             // check if intersect is within a
             if (actualY < minAY or actualY > maxAY)
                 return null;
-            return return Line{ .start = Point{ .x = a.start.x, .y = actualY }, .end = Point{ .x = a.start.x, .y = actualY } };
+            return Line{ .start = Point{ .x = a.start.x, .y = actualY }, .end = Point{ .x = a.start.x, .y = actualY } };
         }
 
         // calculate y = ax + b for both lines & check for intersection

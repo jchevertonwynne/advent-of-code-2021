@@ -2,7 +2,7 @@ const std = @import("std");
 
 const util = @import("../util.zig");
 
-pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
+pub fn run(contents: []u8, out: anytype, allocator: std.mem.Allocator) !i128 {
     var start = std.time.nanoTimestamp();
 
     var newLine = std.mem.indexOf(u8, contents, "\n") orelse unreachable;
@@ -30,7 +30,7 @@ const BITSPacket = struct {
     literal: ?usize,
     subpackets: ?[]BITSPacket,
 
-    fn parse(bits: []u1, allocator: *std.mem.Allocator) anyerror!BITSPacketResult {
+    fn parse(bits: []u1, allocator: std.mem.Allocator) anyerror!BITSPacketResult {
         var result: @This() = .{ .packetVersion = 0, .packetType = 0, .literal = null, .subpackets = null };
 
         result.packetVersion += bits[0];
@@ -103,7 +103,7 @@ const BITSPacket = struct {
         return result;
     }
 
-    fn deinit(self: *@This(), allocator: *std.mem.Allocator) void {
+    fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
         if (self.subpackets) |*subpackets| {
             for (subpackets.*) |*s|
                 s.deinit(allocator);
@@ -156,7 +156,7 @@ const BITSPacket = struct {
     }
 };
 
-fn toBits(contents: []u8, allocator: *std.mem.Allocator) ![]u1 {
+fn toBits(contents: []u8, allocator: std.mem.Allocator) ![]u1 {
     var res = std.ArrayList(u1).init(allocator);
     errdefer res.deinit();
 

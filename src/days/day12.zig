@@ -2,7 +2,7 @@ const std = @import("std");
 
 const util = @import("../util.zig");
 
-pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
+pub fn run(contents: []u8, out: anytype, allocator: std.mem.Allocator) !i128 {
     var start = std.time.nanoTimestamp();
 
     var caves = try loadCaves(contents, allocator);
@@ -94,7 +94,7 @@ fn isSmallCave(cave: []const u8) bool {
     return 'a' <= cave[0] and cave[0] <= 'z';
 }
 
-fn loadCaves(contents: []u8, allocator: *std.mem.Allocator) ![2706]std.ArrayList([]const u8) {
+fn loadCaves(contents: []u8, allocator: std.mem.Allocator) ![2706]std.ArrayList([]const u8) {
     var result: [2706]std.ArrayList([]const u8) = undefined;
     for (result) |*r|
         r.* = std.ArrayList([]const u8).init(allocator);

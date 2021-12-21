@@ -2,7 +2,7 @@ const std = @import("std");
 
 const util = @import("../util.zig");
 
-pub fn run(contents: []u8, out: anytype, allocator: *std.mem.Allocator) !i128 {
+pub fn run(contents: []u8, out: anytype, allocator: std.mem.Allocator) !i128 {
     var start = std.time.nanoTimestamp();
 
     var numbers = try loadNumbers(contents, allocator);
@@ -227,7 +227,7 @@ const Side = enum { left, right };
 
 const ExplodeResult = struct { left: ?u8, right: ?u8, explosionDone: bool, source: bool };
 
-fn loadNumbers(contents: []u8, allocator: *std.mem.Allocator) ![]SnailNumber {
+fn loadNumbers(contents: []u8, allocator: std.mem.Allocator) ![]SnailNumber {
     var numbers = std.ArrayList(SnailNumber).init(allocator);
     defer numbers.deinit();
 
