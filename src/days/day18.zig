@@ -63,13 +63,15 @@ const SnailNumber = struct {
         return self._magnitude(0);
     }
 
-    fn _magnitude(self: @This(), i: usize) usize {
+    fn _magnitude(self: @This(), comptime i: usize) usize {
+        if (i >= self.contents.len)
+            unreachable;
         if (self.contents[i]) |val|
             return val;
         return 3 * self._magnitude(i * 2 + 1) + 2 * self._magnitude(i * 2 + 2);
     }
 
-    fn fill(self: *@This(), base: usize, ind: usize, depth: usize, other: SnailNumber) void {
+    fn fill(self: *@This(), comptime base: usize, comptime ind: usize, comptime depth: usize, other: SnailNumber) void {
         if (depth > 4)
             return;
         self.contents[base] = other.contents[ind];
@@ -85,7 +87,9 @@ const SnailNumber = struct {
         return result;
     }
 
-    fn addValue(self: *@This(), comptime side: Side, index: usize, value: u8) void {
+    fn addValue(self: *@This(), comptime side: Side, comptime index: usize, value: u8) void {
+        if (index >= self.contents.len)
+            unreachable;
         if (self.contents[index]) |*val| {
             val.* += value;
         } else {
@@ -125,7 +129,9 @@ const SnailNumber = struct {
         return self._explode(0, 0);
     }
 
-    fn _explode(self: *@This(), i: usize, depth: usize) ExplodeResult {
+    fn _explode(self: *@This(), comptime i: usize, comptime depth: usize) ExplodeResult {
+        if (depth > 4)
+            unreachable;
         if (depth == 4 and self.contents[i] == null) {
             var left: ?u8 = self.contents[i * 2 + 1];
             if (i % 2 == 0) { // righthand branch
@@ -172,7 +178,7 @@ const SnailNumber = struct {
             self.contents[i * 2 + 2] = 0;
         }
         if (rightResult.left) |left| {
-            if (i % 2 == 0) {
+            if (i != 0 and i % 2 == 0) {
                 self.addValue(.left, i - 1, left);
             } else {
                 result.left = left;
@@ -193,7 +199,9 @@ const SnailNumber = struct {
         return self._split(0);
     }
 
-    fn _split(self: *@This(), i: usize) bool {
+    fn _split(self: *@This(), comptime i: usize) bool {
+        if (i >= self.contents.len / 2)
+            unreachable;
         if (self.contents[i]) |value| {
             if (value >= 10) {
                 var left = value / 2;
