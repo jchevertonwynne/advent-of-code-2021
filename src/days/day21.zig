@@ -8,18 +8,7 @@ pub fn run(contents: []u8, out: anytype) !i128 {
     var game = Game.parse(contents);
 
     var p1: usize = game.play(&DeterministicDice.new());
-    var p2: usize = block: {
-        var cache: [10][10][22][22]?Wins = undefined;
-        for (cache) |*a| {
-            for (a) |*b| {
-                for (b) |*c| {
-                    for (c) |*d|
-                        d.* = null;
-                }
-            }
-        }
-        break :block game.playParallel(0, &cache).most();
-    };
+    var p2: usize = game.playParallel(0, &std.mem.zeroes([10][10][22][22]?Wins)).most();
 
     var duration = std.time.nanoTimestamp() - start;
 
