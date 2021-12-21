@@ -8,7 +8,18 @@ pub fn run(contents: []u8, out: anytype) !i128 {
     var game = Game.parse(contents);
 
     var p1: usize = game.play(&DeterministicDice.new());
-    var p2: usize = game.playParallel(0).most();
+    var p2: usize = block: {
+        var cache: [10][10][22][22]?Wins = undefined;
+        for (cache) |*a| {
+            for (a) |*b| {
+                for (b) |*c| {
+                    for (c) |*d|
+                        d.* = null;
+                }
+            }
+        }
+        break :block game.playParallel(0, &cache).most();
+    };
 
     var duration = std.time.nanoTimestamp() - start;
 
@@ -47,7 +58,18 @@ const Game = struct {
         }
     }
 
-    fn playParallel(_self: @This(), comptime i: usize) Wins {
+    fn playParallel(_self: @This(), comptime playerIndex: usize, cache: *[10][10][22][22]?Wins) Wins {
+        var orderedPlayers = _self.players;
+        if (playerIndex == 1) 
+            std.mem.swap(Player, &orderedPlayers[0], &orderedPlayers[1]);
+
+        if (cache[orderedPlayers[0].position][orderedPlayers[1].position][orderedPlayers[0].score][orderedPlayers[1].score]) |_cacheResult| {
+            var cacheResult = _cacheResult;
+            if (playerIndex == 1)
+                std.mem.swap(usize, &cacheResult.player1, &cacheResult.player2);
+            return cacheResult;
+        }
+        
         var wins = Wins{ .player1 = 0, .player2 = 0 };
 
         const rollsCombination = [_]struct { rollSum: usize, count: usize }{
@@ -62,18 +84,24 @@ const Game = struct {
 
         inline for (rollsCombination) |combination| {
             var self = _self;
-            var player = &self.players[i];
+            var player = &self.players[playerIndex];
             player.position += combination.rollSum;
             player.position %= 10;
             player.score += player.position + 1;
             if (player.score >= 21) {
-                var won = (Wins{ .player1 = 1 - i, .player2 = i }).mult(combination.count);
+                var won = (Wins{ .player1 = 1 - playerIndex, .player2 = playerIndex }).mult(combination.count);
                 wins = wins.add(won);
             } else {
-                var subgame = self.playParallel((i + 1) % 2).mult(combination.count);
+                var subgame = self.playParallel((playerIndex + 1) % 2, cache).mult(combination.count);
                 wins = wins.add(subgame);
             }
         }
+
+        var orderedWins = wins;
+        if (playerIndex == 1)
+            std.mem.swap(usize, &orderedWins.player1, &orderedWins.player2);
+
+        cache[orderedPlayers[0].position][orderedPlayers[1].position][orderedPlayers[0].score][orderedPlayers[1].score] = orderedWins;
 
         return wins;
     }
@@ -100,14 +128,6 @@ const Wins = struct {
             wins.player1
         else
             wins.player2;
-    }
-
-    fn player1() Wins {
-        return Wins{ .player1 = 1, .player2 = 0 };
-    }
-
-    fn player2() Wins {
-        return Wins{ .player1 = 0, .player2 = 1 };
     }
 };
 
