@@ -8,7 +8,7 @@ pub fn run(contents: []u8, out: anytype) !i128 {
     var game = Game.parse(contents);
 
     var p1: usize = game.play(&DeterministicDice.new());
-    var p2: usize = game.playParallel(0, &std.mem.zeroes([10][10][22][22]?Wins)).most();
+    var p2: usize = game.playParallel(0, &std.mem.zeroes([10][10][21][21]?Wins)).most();
 
     var duration = std.time.nanoTimestamp() - start;
 
@@ -47,9 +47,9 @@ const Game = struct {
         }
     }
 
-    fn playParallel(_self: @This(), comptime playerIndex: usize, cache: *[10][10][22][22]?Wins) Wins {
+    fn playParallel(_self: @This(), comptime playerIndex: usize, cache: *[10][10][21][21]?Wins) Wins {
         var orderedPlayers = _self.players;
-        if (playerIndex == 1) 
+        if (playerIndex == 1)
             std.mem.swap(Player, &orderedPlayers[0], &orderedPlayers[1]);
 
         if (cache[orderedPlayers[0].position][orderedPlayers[1].position][orderedPlayers[0].score][orderedPlayers[1].score]) |_cacheResult| {
@@ -58,7 +58,7 @@ const Game = struct {
                 std.mem.swap(usize, &cacheResult.player1, &cacheResult.player2);
             return cacheResult;
         }
-        
+
         var wins = Wins{ .player1 = 0, .player2 = 0 };
 
         const rollsCombination = [_]struct { rollSum: usize, count: usize }{
