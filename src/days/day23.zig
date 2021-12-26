@@ -279,7 +279,10 @@ const State = struct {
     }
 
     fn transition(self: @This()) std.BoundedArray(TransitionResult, 32) {
-        // TODO - instead of moving one at a time, work out all possible moves
+        // TODO -
+        // 1 - attempt to move tiles in their home row down if possible
+        // 2 - attempt to move tiles with an available home row into their home row
+        // 3 - else just check for the next available moves
         var states = std.BoundedArray(TransitionResult, 32).init(0) catch unreachable;
 
         for (self.tiles) |row, j| {

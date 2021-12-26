@@ -27,6 +27,7 @@ pub const Contents = struct {
     day21: []u8,
     day22: []u8,
     day23: []u8,
+    day24: []u8,
 
     pub fn load(allocator: std.mem.Allocator) !Self {
         var dir = std.fs.cwd();
@@ -80,6 +81,8 @@ pub const Contents = struct {
         errdefer allocator.free(self.day22);
         self.day23 = try dir.readFileAlloc(allocator, "files/23.txt", std.math.maxInt(usize));
         errdefer allocator.free(self.day23);
+        self.day24 = try dir.readFileAlloc(allocator, "files/24.txt", std.math.maxInt(usize));
+        errdefer allocator.free(self.day24);
 
         return self;
     }
@@ -108,6 +111,7 @@ pub const Contents = struct {
         self.allocator.free(self.day21);
         self.allocator.free(self.day22);
         self.allocator.free(self.day23);
+        self.allocator.free(self.day24);
     }
 };
 
@@ -181,7 +185,7 @@ pub fn writeResponse(out: anytype, comptime day: usize, part1: anytype, part2: a
     }
 }
 
-pub fn toInt(comptime T: type, contents: []u8, number: *T, size: *usize) void {
+pub fn toInt(comptime T: type, contents: []const u8, number: *T, size: *usize) void {
     var result: T = 0;
     var characters: usize = 0;
 
@@ -197,7 +201,7 @@ pub fn toInt(comptime T: type, contents: []u8, number: *T, size: *usize) void {
     size.* = characters + 1;
 }
 
-pub fn toSignedInt(comptime T: type, contents: []u8, number: *T, size: *usize) void {
+pub fn toSignedInt(comptime T: type, contents: []const u8, number: *T, size: *usize) void {
     if (@typeInfo(T).Int.signedness == .unsigned)
         @compileError("must supply a signed integer");
 
@@ -212,6 +216,7 @@ pub fn toSignedInt(comptime T: type, contents: []u8, number: *T, size: *usize) v
             characters = i;
         } else if (char == '-') {
             negative = true;
+            characters = i;
         } else break;
     }
 

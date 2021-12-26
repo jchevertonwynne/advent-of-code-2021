@@ -19,60 +19,132 @@ pub fn run(contents: []u8, out: anytype, allocator: std.mem.Allocator) !i128 {
 }
 
 fn part1(commands: []Command, allocator: std.mem.Allocator) !isize {
+    std.debug.print("cube 0 vol = {}\n", .{commands[0].cube.volume()});
+
     var on = std.ArrayList(Cube).init(allocator);
     defer on.deinit();
     try on.append(commands[0].cube);
 
-    var newOn = std.ArrayList(Cube).init(allocator);
-    defer newOn.deinit();
+    var onSwap = std.ArrayList(Cube).init(allocator);
+    defer onSwap.deinit();
 
-    for (commands[1..]) |command| {
-        if (!command.cube.initialisation())
+    var commandCubeParts = std.ArrayList(Cube).init(allocator);
+    defer commandCubeParts.deinit();
+
+    var commandCubePartsSwap = std.ArrayList(Cube).init(allocator);
+    defer commandCubePartsSwap.deinit();
+
+    var addToOnCubes = std.ArrayList(Cube).init(allocator);
+    defer addToOnCubes.deinit();
+
+    for (commands[1..]) |command, i| {
+        if (!command.cube.inInitialisationArea())
             break;
 
-        newOn.clearRetainingCapacity();
+        onSwap.clearRetainingCapacity();
+        commandCubeParts.clearRetainingCapacity();
+        try commandCubeParts.append(command.cube);
+        commandCubePartsSwap.clearRetainingCapacity();
 
+        std.debug.print("cube {} vol = {}\n", .{ i + 1, command.cube.volume() });
         std.debug.print("on items len = {}\n", .{on.items.len});
-
-        var wasIntersection = false;
+        for (on.items) |o|
+            std.debug.print("  {}\n", .{o});
 
         for (on.items) |onCube| {
-            // std.debug.print("looking at {}\n", .{command.cube});
-            if (onCube.subparts(command.cube)) |*subparts| {
-                wasIntersection = true;
-                // std.debug.print("parts = {d}\n", .{subparts.slice()});
-                var toAdd = std.BoundedArray(Cube, 27).init(0) catch unreachable;
-                for (subparts.slice()) |s| {
-                    // std.debug.print("{}\n", .{s});
-                    if (command.on) {
-                        if (onCube.intersection(s) != null or command.cube.intersection(s) != null)
-                            toAdd.append(s) catch unreachable;
-                    } else {
-                        if (onCube.intersection(s) != null and command.cube.intersection(s) == null)
-                            toAdd.append(s) catch unreachable;
+            // iterate through command cube parts until none remain
+            var anyIntersection = false;
+
+            while (commandCubeParts.popOrNull()) |commandCubePart| {
+                if (Cube.subparts(onCube, commandCubePart)) |*subparts| {
+                    anyIntersection = true;
+                    addToOnCubes.clearRetainingCapacity();
+
+                    for (subparts.slice()) |subpart| {
+                        if (command.on) {
+                            if (onCube.contains(subpart)) {
+                                try addToOnCubes.append(subpart);
+                            } else if (command.cube.contains(subpart)) {
+                                try commandCubePartsSwap.append(subpart);
+                            }
+                        } else {
+                            if (onCube.contains(subpart) and !commandCubePart.contains(subpart)) {
+                                try addToOnCubes.append(subpart);
+                            }
+                        }
                     }
+
+                    combineCubes(&addToOnCubes);
+                    try onSwap.appendSlice(addToOnCubes.items);
                 }
-                // std.debug.print("wanted parts = {d}\n", .{toAdd.slice()});
-                optimise(&toAdd);
-                // std.debug.print("optimised wanted parts = {d}\n", .{toAdd.slice()});
-                try newOn.appendSlice(toAdd.slice());
-            } else {
-                try newOn.append(onCube);
             }
+
+            if (!anyIntersection)
+                try onSwap.append(onCube);
+
+            std.mem.swap(@TypeOf(commandCubeParts, commandCubePartsSwap), &commandCubeParts, &commandCubePartsSwap);
         }
 
-        if (!wasIntersection and command.on)
-            try newOn.append(command.cube);
+        // for (on.items) |onCube| {
+        //     // for each on cube iterate over all command cube parts
+        //     var anyIntersection = false;
 
-        std.mem.swap(@TypeOf(on, newOn), &on, &newOn);
+        //     commandCubePartsSwap.clearRetainingCapacity();
+        //     for (commandCubeParts.items) |commandCubePart| {
+        //         std.debug.print("comparing\n{} and\n{}\n", .{onCube, commandCubePart});
+        //         if (Cube.subparts(onCube, commandCubePart)) |*subparts| {
+        //             std.debug.print("found an intersection!\n", .{});
+        //             anyIntersection = true;
+        //             addToOnCubes.clearRetainingCapacity();
+
+        //             for (subparts.slice()) |subpart| {
+        //                 if (command.on) {
+        //                     if (onCube.contains(subpart)) {
+        //                         try addToOnCubes.append(subpart);
+        //                     } else if (commandCubePart.contains(subpart)) {
+        //                         std.debug.print("1\n", .{});
+        //                         try commandCubePartsSwap.append(subpart);
+        //                     }
+        //                 } else {
+        //                     if (onCube.contains(subpart) and !commandCubePart.contains(subpart)) {
+        //                         try addToOnCubes.append(subpart);
+        //                     }
+        //                 }
+        //             }
+
+        //             combineCubes(&addToOnCubes);
+        //             try onSwap.appendSlice(addToOnCubes.items);
+        //         } else {
+        //             try commandCubePartsSwap.append(commandCubePart);
+        //         }
+        //     }
+
+        //     if (!anyIntersection)
+        //         try onSwap.append(onCube);
+
+        //     std.mem.swap(@TypeOf(commandCubeParts, commandCubePartsSwap), &commandCubeParts, &commandCubePartsSwap);
+
+        //     std.debug.print("cmd cube parts = {}\n", .{commandCubeParts.items.len});
+        // }
+
+        if (command.on) {
+            for (commandCubeParts.items) |bPart|
+                try onSwap.append(bPart);
+        }
+
+        std.mem.swap(@TypeOf(on, onSwap), &on, &onSwap);
     }
 
     std.debug.print("final len = {}\n", .{on.items.len});
 
     var res: isize = 0;
-    for (on.items) |c| {
+    for (on.items) |c, i| {
         res += c.volume();
-        std.debug.print("{}\n", .{c});
+        // std.debug.print("{} {}\n", .{ c.volume(), c });
+        for (on.items[0..i]) |c2| {
+            // std.debug.print("{}\n{}\n{}\n", .{c, c2, Cube.intersection(c, c2)});
+            std.debug.assert(Cube.intersection(c, c2) == null);
+        }
     }
 
     return res;
@@ -99,35 +171,23 @@ fn part2(commands: []Command, allocator: std.mem.Allocator) !isize {
     return 0;
 }
 
-fn optimise(cubes: *std.BoundedArray(Cube, 27)) void {
+fn combineCubes(cubes: *std.ArrayList(Cube)) void {
+    var startVol: isize = 0;
+    for (cubes.items) |c|
+        startVol += c.volume();
+
     while (true) {
         var change = false;
 
-        var slice = cubes.slice();
+        var slice = cubes.items;
 
         loop: for (slice) |a, ind| {
             for (slice[ind + 1 ..]) |b, ind2| {
-                if (a.start.x == b.start.x and a.start.y == b.start.y and a.end.x == b.end.x and a.end.y == b.end.y and a.end.z == b.start.z) {
+                var continueX = a.start.y == b.start.y and a.start.z == b.start.z and a.end.y == b.end.y and a.end.z == b.end.z and a.end.x == b.start.x;
+                var continueY = a.start.x == b.start.x and a.start.z == b.start.z and a.end.x == b.end.x and a.end.z == b.end.z and a.end.y == b.start.y;
+                var continueZ = a.start.x == b.start.x and a.start.y == b.start.y and a.end.x == b.end.x and a.end.y == b.end.y and a.end.z == b.start.z;
+                if (continueX or continueY or continueZ) {
                     var newCube = Cube{ .start = a.start, .end = b.end };
-                    // std.debug.print("combining\n{} and\n{} into\n{}\n{} + {} == {}", .{a,b,newCube,a.volume(),b.volume(),newCube.volume()});
-                    slice[ind] = newCube;
-                    slice[ind + 1 + ind2] = slice[slice.len - 1];
-                    _ = cubes.pop();
-                    change = true;
-                    break :loop;
-                }
-                if (a.start.x == b.start.x and a.start.z == b.start.z and a.end.x == b.end.x and a.end.z == b.end.z and a.end.y == b.start.y) {
-                    var newCube = Cube{ .start = a.start, .end = b.end };
-                    // std.debug.print("combining\n{} and\n{} into\n{}\n{} + {} == {}", .{a,b,newCube,a.volume(),b.volume(),newCube.volume()});
-                    slice[ind] = newCube;
-                    slice[ind + 1 + ind2] = slice[slice.len - 1];
-                    _ = cubes.pop();
-                    change = true;
-                    break :loop;
-                }
-                if (a.start.y == b.start.y and a.start.z == b.start.z and a.end.y == b.end.y and a.end.z == b.end.z and a.end.x == b.start.x) {
-                    var newCube = Cube{ .start = a.start, .end = b.end };
-                    // std.debug.print("combining\n{} and\n{} into\n{}\n{} + {} == {}", .{a,b,newCube,a.volume(),b.volume(),newCube.volume()});
                     slice[ind] = newCube;
                     slice[ind + 1 + ind2] = slice[slice.len - 1];
                     _ = cubes.pop();
@@ -137,8 +197,13 @@ fn optimise(cubes: *std.BoundedArray(Cube, 27)) void {
             }
         }
 
-        if (!change)
+        if (!change) {
+            var endVol: isize = 0;
+            for (cubes.items) |c|
+                endVol += c.volume();
+            std.debug.assert(startVol == endVol);
             return;
+        }
     }
 }
 
@@ -148,11 +213,15 @@ const Cube = struct {
     start: Point,
     end: Point,
 
-    fn contains(self: @This(), point: Point) bool {
-        return self.start.x <= point.x and point.x < self.end.x and self.start.y <= point.y and point.y < self.end.y and self.start.z <= point.z and point.z < self.end.z;
+    fn contains(self: @This(), other: @This()) bool {
+        return self.containsPoint(other.start) and self.containsPoint(other.end);
     }
 
-    fn initialisation(self: @This()) bool {
+    fn containsPoint(self: @This(), point: Point) bool {
+        return self.start.x <= point.x and point.x <= self.end.x and self.start.y <= point.y and point.y <= self.end.y and self.start.z <= point.z and point.z <= self.end.z;
+    }
+
+    fn inInitialisationArea(self: @This()) bool {
         return self.start.x >= -50 and self.start.y >= -50 and self.start.z >= -50 and self.end.x <= 50 and self.end.y <= 50 and self.end.z <= 50;
     }
 
@@ -181,13 +250,18 @@ const Cube = struct {
         for (x[0..3]) |_, i| {
             for (y[0..3]) |_, j| {
                 for (z[0..3]) |_, k| {
-                    var cube: Cube = undefined;
-                    cube.start.x = x[i];
-                    cube.start.y = y[j];
-                    cube.start.z = z[k];
-                    cube.end.x = x[i + 1];
-                    cube.end.y = y[j + 1];
-                    cube.end.z = z[k + 1];
+                    var cube = Cube{
+                        .start = Point{
+                            .x = x[i],
+                            .y = y[j],
+                            .z = z[k],
+                        },
+                        .end = Point{
+                            .x = x[i + 1],
+                            .y = y[j + 1],
+                            .z = z[k + 1],
+                        },
+                    };
                     if (cube.start.x == cube.end.x)
                         continue;
                     if (cube.start.y == cube.end.y)
