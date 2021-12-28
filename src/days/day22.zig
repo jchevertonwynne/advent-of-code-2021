@@ -8,8 +8,8 @@ pub fn run(contents: []u8, out: anytype, allocator: std.mem.Allocator) !i128 {
     var commands = try loadCommands(contents, allocator);
     defer allocator.free(commands);
 
-    var p1: isize = try part1(commands, allocator);
-    var p2: isize = 0;
+    var p1: isize = try solve(.part1, commands, allocator);
+    var p2: isize = try solve(.part2, commands, allocator);
 
     var duration = std.time.nanoTimestamp() - start;
 
@@ -18,193 +18,86 @@ pub fn run(contents: []u8, out: anytype, allocator: std.mem.Allocator) !i128 {
     return duration;
 }
 
-fn part1(commands: []Command, allocator: std.mem.Allocator) !isize {
-    std.debug.print("cube 0 vol = {}\n", .{commands[0].cube.volume()});
+const Part = enum {
+    part1,
+    part2
+};
 
-    var on = std.ArrayList(Cube).init(allocator);
-    defer on.deinit();
-    try on.append(commands[0].cube);
+fn solve(comptime part: Part, commands: []Command, allocator: std.mem.Allocator) !isize {
+    var allX = std.ArrayList(isize).init(allocator);
+    defer allX.deinit();
+    var allY = std.ArrayList(isize).init(allocator);
+    defer allY.deinit();
+    var allZ = std.ArrayList(isize).init(allocator);
+    defer allZ.deinit();
 
-    var onSwap = std.ArrayList(Cube).init(allocator);
-    defer onSwap.deinit();
-
-    var commandCubeParts = std.ArrayList(Cube).init(allocator);
-    defer commandCubeParts.deinit();
-
-    var commandCubePartsSwap = std.ArrayList(Cube).init(allocator);
-    defer commandCubePartsSwap.deinit();
-
-    var addToOnCubes = std.ArrayList(Cube).init(allocator);
-    defer addToOnCubes.deinit();
-
-    for (commands[1..]) |command, i| {
-        if (!command.cube.inInitialisationArea())
+    for (commands) |command| {
+        if (part == .part1 and !command.cube.inInitialisationArea())
             break;
-
-        onSwap.clearRetainingCapacity();
-        commandCubeParts.clearRetainingCapacity();
-        try commandCubeParts.append(command.cube);
-        commandCubePartsSwap.clearRetainingCapacity();
-
-        std.debug.print("cube {} vol = {}\n", .{ i + 1, command.cube.volume() });
-        std.debug.print("on items len = {}\n", .{on.items.len});
-        for (on.items) |o|
-            std.debug.print("  {}\n", .{o});
-
-        for (on.items) |onCube| {
-            // iterate through command cube parts until none remain
-            var anyIntersection = false;
-
-            while (commandCubeParts.popOrNull()) |commandCubePart| {
-                if (Cube.subparts(onCube, commandCubePart)) |*subparts| {
-                    anyIntersection = true;
-                    addToOnCubes.clearRetainingCapacity();
-
-                    for (subparts.slice()) |subpart| {
-                        if (command.on) {
-                            if (onCube.contains(subpart)) {
-                                try addToOnCubes.append(subpart);
-                            } else if (command.cube.contains(subpart)) {
-                                try commandCubePartsSwap.append(subpart);
-                            }
-                        } else {
-                            if (onCube.contains(subpart) and !commandCubePart.contains(subpart)) {
-                                try addToOnCubes.append(subpart);
-                            }
-                        }
-                    }
-
-                    combineCubes(&addToOnCubes);
-                    try onSwap.appendSlice(addToOnCubes.items);
-                }
-            }
-
-            if (!anyIntersection)
-                try onSwap.append(onCube);
-
-            std.mem.swap(@TypeOf(commandCubeParts, commandCubePartsSwap), &commandCubeParts, &commandCubePartsSwap);
-        }
-
-        // for (on.items) |onCube| {
-        //     // for each on cube iterate over all command cube parts
-        //     var anyIntersection = false;
-
-        //     commandCubePartsSwap.clearRetainingCapacity();
-        //     for (commandCubeParts.items) |commandCubePart| {
-        //         std.debug.print("comparing\n{} and\n{}\n", .{onCube, commandCubePart});
-        //         if (Cube.subparts(onCube, commandCubePart)) |*subparts| {
-        //             std.debug.print("found an intersection!\n", .{});
-        //             anyIntersection = true;
-        //             addToOnCubes.clearRetainingCapacity();
-
-        //             for (subparts.slice()) |subpart| {
-        //                 if (command.on) {
-        //                     if (onCube.contains(subpart)) {
-        //                         try addToOnCubes.append(subpart);
-        //                     } else if (commandCubePart.contains(subpart)) {
-        //                         std.debug.print("1\n", .{});
-        //                         try commandCubePartsSwap.append(subpart);
-        //                     }
-        //                 } else {
-        //                     if (onCube.contains(subpart) and !commandCubePart.contains(subpart)) {
-        //                         try addToOnCubes.append(subpart);
-        //                     }
-        //                 }
-        //             }
-
-        //             combineCubes(&addToOnCubes);
-        //             try onSwap.appendSlice(addToOnCubes.items);
-        //         } else {
-        //             try commandCubePartsSwap.append(commandCubePart);
-        //         }
-        //     }
-
-        //     if (!anyIntersection)
-        //         try onSwap.append(onCube);
-
-        //     std.mem.swap(@TypeOf(commandCubeParts, commandCubePartsSwap), &commandCubeParts, &commandCubePartsSwap);
-
-        //     std.debug.print("cmd cube parts = {}\n", .{commandCubeParts.items.len});
-        // }
-
-        if (command.on) {
-            for (commandCubeParts.items) |bPart|
-                try onSwap.append(bPart);
-        }
-
-        std.mem.swap(@TypeOf(on, onSwap), &on, &onSwap);
+        var cube = command.cube;
+        try allX.append(cube.start.x);
+        try allX.append(cube.end.x);
+        try allY.append(cube.start.y);
+        try allY.append(cube.end.y);
+        try allZ.append(cube.start.z);
+        try allZ.append(cube.end.z);
     }
 
-    std.debug.print("final len = {}\n", .{on.items.len});
+    std.sort.sort(isize, allX.items, {}, comptime std.sort.asc(isize));
+    std.sort.sort(isize, allY.items, {}, comptime std.sort.asc(isize));
+    std.sort.sort(isize, allZ.items, {}, comptime std.sort.asc(isize));
+
+    var uniqueX = std.ArrayList(isize).init(allocator);
+    defer uniqueX.deinit();
+    var uniqueY = std.ArrayList(isize).init(allocator);
+    defer uniqueY.deinit();
+    var uniqueZ = std.ArrayList(isize).init(allocator);
+    defer uniqueZ.deinit();
+
+    try uniqueX.append(allX.items[0]);
+    for (allX.items) |potX| {
+        if (uniqueX.items[uniqueX.items.len - 1] != potX)
+            try uniqueX.append(potX);
+    }
+
+    try uniqueY.append(allY.items[0]);
+    for (allY.items) |potY| {
+        if (uniqueY.items[uniqueY.items.len - 1] != potY)
+            try uniqueY.append(potY);
+    }
+
+    try uniqueZ.append(allZ.items[0]);
+    for (allZ.items) |potZ| {
+        if (uniqueZ.items[uniqueZ.items.len - 1] != potZ)
+            try uniqueZ.append(potZ);
+    }
 
     var res: isize = 0;
-    for (on.items) |c, i| {
-        res += c.volume();
-        // std.debug.print("{} {}\n", .{ c.volume(), c });
-        for (on.items[0..i]) |c2| {
-            // std.debug.print("{}\n{}\n{}\n", .{c, c2, Cube.intersection(c, c2)});
-            std.debug.assert(Cube.intersection(c, c2) == null);
+
+    var cube: Cube = undefined;
+    for (uniqueX.items[0 .. uniqueX.items.len - 1]) |x, i| {
+        cube.start.x = x;
+        cube.end.x = uniqueX.items[i + 1];
+        for (uniqueY.items[0 .. uniqueY.items.len - 1]) |y, j| {
+            cube.start.y = y;
+            cube.end.y = uniqueY.items[j + 1];
+            for (uniqueZ.items[0 .. uniqueZ.items.len - 1]) |z, k| {
+                cube.start.z = z;
+                cube.end.z = uniqueZ.items[k + 1];
+                var active = false;
+                for (commands) |command| {
+                    if (part == .part1 and !command.cube.inInitialisationArea())
+                        break;
+                    if (command.cube.contains(cube))
+                        active = command.on;
+                }
+                if (active)
+                    res += cube.volume();
+            }
         }
     }
 
     return res;
-}
-
-fn part2(commands: []Command, allocator: std.mem.Allocator) !isize {
-    var on = std.ArrayList(Cube).init(allocator);
-    defer on.deinit();
-    try on.append(commands[0].cube);
-
-    // for (commands[1..]) |command| {
-    //     var newOn = std.ArrayList(Cube).init(allocator);
-    //     defer newOn.deinit();
-
-    //     // for (on.items) |onCube| {
-    //     //     if (onCube.intersection(command.cube)) |_| {
-    //     //         var subparts = onCube.subparts(command.cube);
-    //     //     }
-    //     // }
-
-    //     std.mem.swap(@TypeOf(on, newOn), &on, &newOn);
-    // }
-
-    return 0;
-}
-
-fn combineCubes(cubes: *std.ArrayList(Cube)) void {
-    var startVol: isize = 0;
-    for (cubes.items) |c|
-        startVol += c.volume();
-
-    while (true) {
-        var change = false;
-
-        var slice = cubes.items;
-
-        loop: for (slice) |a, ind| {
-            for (slice[ind + 1 ..]) |b, ind2| {
-                var continueX = a.start.y == b.start.y and a.start.z == b.start.z and a.end.y == b.end.y and a.end.z == b.end.z and a.end.x == b.start.x;
-                var continueY = a.start.x == b.start.x and a.start.z == b.start.z and a.end.x == b.end.x and a.end.z == b.end.z and a.end.y == b.start.y;
-                var continueZ = a.start.x == b.start.x and a.start.y == b.start.y and a.end.x == b.end.x and a.end.y == b.end.y and a.end.z == b.start.z;
-                if (continueX or continueY or continueZ) {
-                    var newCube = Cube{ .start = a.start, .end = b.end };
-                    slice[ind] = newCube;
-                    slice[ind + 1 + ind2] = slice[slice.len - 1];
-                    _ = cubes.pop();
-                    change = true;
-                    break :loop;
-                }
-            }
-        }
-
-        if (!change) {
-            var endVol: isize = 0;
-            for (cubes.items) |c|
-                endVol += c.volume();
-            std.debug.assert(startVol == endVol);
-            return;
-        }
-    }
 }
 
 const Command = struct { on: bool, cube: Cube };
@@ -230,68 +123,6 @@ const Cube = struct {
         var y = self.end.y - self.start.y;
         var z = self.end.z - self.start.z;
         return x * y * z;
-    }
-
-    fn subparts(a: @This(), b: @This()) ?std.BoundedArray(Cube, 27) {
-        var possibleIntersection = a.intersection(b);
-        if (possibleIntersection == null)
-            return null;
-
-        var result = std.BoundedArray(Cube, 27).init(0) catch unreachable;
-
-        var x = [4]isize{ a.start.x, a.end.x, b.start.x, b.end.x };
-        var y = [4]isize{ a.start.y, a.end.y, b.start.y, b.end.y };
-        var z = [4]isize{ a.start.z, a.end.z, b.start.z, b.end.z };
-
-        std.sort.sort(isize, &x, {}, comptime std.sort.asc(isize));
-        std.sort.sort(isize, &y, {}, comptime std.sort.asc(isize));
-        std.sort.sort(isize, &z, {}, comptime std.sort.asc(isize));
-
-        for (x[0..3]) |_, i| {
-            for (y[0..3]) |_, j| {
-                for (z[0..3]) |_, k| {
-                    var cube = Cube{
-                        .start = Point{
-                            .x = x[i],
-                            .y = y[j],
-                            .z = z[k],
-                        },
-                        .end = Point{
-                            .x = x[i + 1],
-                            .y = y[j + 1],
-                            .z = z[k + 1],
-                        },
-                    };
-                    if (cube.start.x == cube.end.x)
-                        continue;
-                    if (cube.start.y == cube.end.y)
-                        continue;
-                    if (cube.start.z == cube.end.z)
-                        continue;
-                    result.append(cube) catch unreachable;
-                }
-            }
-        }
-
-        return result;
-    }
-
-    fn intersection(a: @This(), b: @This()) ?@This() {
-        var result = Cube{
-            .start = Point{ .x = std.math.max(a.start.x, b.start.x), .y = std.math.max(a.start.y, b.start.y), .z = std.math.max(a.start.z, b.start.z) },
-            .end = Point{ .x = std.math.min(a.end.x, b.end.x), .y = std.math.min(a.end.y, b.end.y), .z = std.math.min(a.end.z, b.end.z) },
-        };
-
-        if (result.start.x >= result.end.x)
-            return null;
-
-        if (result.start.y >= result.end.y)
-            return null;
-
-        if (result.start.z >= result.end.z)
-            return null;
-
-        return result;
     }
 };
 

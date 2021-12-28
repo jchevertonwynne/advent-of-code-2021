@@ -3,22 +3,18 @@ const std = @import("std");
 const util = @import("../util.zig");
 
 const contents = @embedFile("../../files/24.txt");
+const instructions = loadInstructions();
 
-pub fn run(_contents: []u8, out: anytype, allocator: std.mem.Allocator) !i128 {
-    _ = _contents;
-    _ = allocator;
-
+pub fn run(out: anytype) !i128 {
     var start = std.time.nanoTimestamp();
-
-    const instructions = comptime loadInstructions();
 
     for (instructions) |i|
         std.debug.print("{}\n", .{i});
 
-    var p1: isize = part1(instructions);
+    var p1: isize = part1();
     var p2: usize = 0;
 
-    std.debug.print("{}\n", .{try runMachine(11111111111111, instructions)});
+    std.debug.print("{}\n", .{try runMachine(11111111111111)});
 
     var duration = std.time.nanoTimestamp() - start;
 
@@ -27,17 +23,15 @@ pub fn run(_contents: []u8, out: anytype, allocator: std.mem.Allocator) !i128 {
     return duration;
 }
 
-fn part1(comptime instructions: [252]Instruction) isize {
+fn part1() isize {
     var threads: [10]std.Thread = undefined;
     var range: isize = 100_000_000_000_000;
-    var step: isize  = 100_000_000;
+    var step: isize = 100_000_000;
     var res: isize = 0;
-    var mutex = std.Thread.Mutex.AtomicMutex{};
+    var mutex = std.Thread.Mutex{};
     while (res == 0) : (range -= step * 10) {
-        var offset: isize = 0;
-        for (threads) |*t| {
-            t.* = std.Thread.spawn(.{}, runRange, .{range - offset - step, range - offset, instructions, &mutex, &res}) catch unreachable;
-            offset += step;
+        for (threads) |*t, i| {
+            t.* = std.Thread.spawn(.{}, runRange, .{ range - step * @intCast(isize, i + 1), range - step * @intCast(isize, i), &mutex, &res }) catch unreachable;
         }
         for (threads) |*t| {
             t.join();
@@ -46,12 +40,12 @@ fn part1(comptime instructions: [252]Instruction) isize {
     return res;
 }
 
-fn runRange(start: isize, end: isize, comptime instructions: [252]Instruction, found: *std.Thread.Mutex.AtomicMutex, val: *isize) void {
-    std.debug.print("{} {}\n", .{start, std.time.milliTimestamp()});
-    defer std.debug.print("{} {}\n", .{start, std.time.milliTimestamp()});
+fn runRange(start: isize, end: isize, found: *std.Thread.Mutex, val: *isize) void {
+    std.debug.print("{} {}\n", .{ start, std.time.milliTimestamp() });
+    defer std.debug.print("{} {}\n", .{ start, std.time.milliTimestamp() });
     var i = start;
     while (i < end) : (i += 1) {
-        var res = runMachine(i, instructions) catch false;
+        var res = runMachine(i) catch false;
         if (res) {
             found.lock();
             if (val.* < i)
@@ -61,7 +55,7 @@ fn runRange(start: isize, end: isize, comptime instructions: [252]Instruction, f
     }
 }
 
-fn runMachine(number: isize, comptime instructions: [252]Instruction) !bool {
+fn runMachine(number: isize) !bool {
     var stack = try std.BoundedArray(isize, 14).init(0);
     var _n = number;
     while (_n > 0) {
@@ -75,9 +69,9 @@ fn runMachine(number: isize, comptime instructions: [252]Instruction) !bool {
     if (stack.slice().len != 14)
         return false;
 
-    var state = [4]isize { 0, 0, 0, 0};
-    
-    for (instructions) |instruction, i| {
+    var state = [4]isize{ 0, 0, 0, 0 };
+
+    inline for (instructions) |instruction| {
         switch (instruction) {
             .input => |register| {
                 state[register] = stack.pop();
@@ -113,22 +107,21 @@ fn runMachine(number: isize, comptime instructions: [252]Instruction) !bool {
                 }) 1 else 0;
             },
         }
-        std.debug.print("{} {d}\n", .{i, state});
     }
 
     return state['z' - 'w'] == 0;
 }
 
 fn loadInstructions() [252]Instruction {
-    @setEvalBranchQuota(1000000);
-    var instructions: [252]Instruction = undefined;
+    @setEvalBranchQuota(100000);
+    var _instructions: [252]Instruction = undefined;
 
     var ind: usize = 0;
     var instructionIndex: usize = 0;
     while (instructionIndex < 252) : (instructionIndex += 1) {
         const instruction = contents[ind .. ind + 3];
         if (std.mem.eql(u8, instruction, "inp")) {
-            instructions[instructionIndex] = Instruction{ .input = contents[ind + 4] - 'w' };
+            _instructions[instructionIndex] = Instruction{ .input = contents[ind + 4] - 'w' };
             ind += 6;
         } else if (std.mem.eql(u8, instruction, "add")) {
             var newInstruction = Instruction{ .add = Params{ .register = contents[ind + 4] - 'w', .value = undefined } };
@@ -142,7 +135,7 @@ fn loadInstructions() [252]Instruction {
                 newInstruction.add.value = Value{ .literal = val };
                 ind += 6 + size + 1;
             }
-            instructions[instructionIndex] = newInstruction;
+            _instructions[instructionIndex] = newInstruction;
         } else if (std.mem.eql(u8, instruction, "mul")) {
             var newInstruction = Instruction{ .mul = Params{ .register = contents[ind + 4] - 'w', .value = undefined } };
             if ('w' <= contents[ind + 6] and contents[ind + 6] <= 'z') {
@@ -155,7 +148,7 @@ fn loadInstructions() [252]Instruction {
                 newInstruction.mul.value = Value{ .literal = val };
                 ind += 6 + size + 1;
             }
-            instructions[instructionIndex] = newInstruction;
+            _instructions[instructionIndex] = newInstruction;
         } else if (std.mem.eql(u8, instruction, "div")) {
             var newInstruction = Instruction{ .div = Params{ .register = contents[ind + 4] - 'w', .value = undefined } };
             if ('w' <= contents[ind + 6] and contents[ind + 6] <= 'z') {
@@ -168,7 +161,7 @@ fn loadInstructions() [252]Instruction {
                 newInstruction.div.value = Value{ .literal = val };
                 ind += 6 + size + 1;
             }
-            instructions[instructionIndex] = newInstruction;
+            _instructions[instructionIndex] = newInstruction;
         } else if (std.mem.eql(u8, instruction, "mod")) {
             var newInstruction = Instruction{ .mod = Params{ .register = contents[ind + 4] - 'w', .value = undefined } };
             if ('w' <= contents[ind + 6] and contents[ind + 6] <= 'z') {
@@ -181,7 +174,7 @@ fn loadInstructions() [252]Instruction {
                 newInstruction.mod.value = Value{ .literal = val };
                 ind += 6 + size + 1;
             }
-            instructions[instructionIndex] = newInstruction;
+            _instructions[instructionIndex] = newInstruction;
         } else if (std.mem.eql(u8, instruction, "eql")) {
             var newInstruction = Instruction{ .eql = Params{ .register = contents[ind + 4] - 'w', .value = undefined } };
             if ('w' <= contents[ind + 6] and contents[ind + 6] <= 'z') {
@@ -194,14 +187,13 @@ fn loadInstructions() [252]Instruction {
                 newInstruction.eql.value = Value{ .literal = val };
                 ind += 6 + size + 1;
             }
-            instructions[instructionIndex] = newInstruction;
+            _instructions[instructionIndex] = newInstruction;
         } else {
-            @compileError("could not find a valid instruction");
-            // @compileError("please provide a valid file");
+            unreachable;
         }
     }
 
-    return instructions;
+    return _instructions;
 }
 
 const Instruction = union(enum) {
