@@ -18,10 +18,7 @@ pub fn run(contents: []u8, out: anytype, allocator: std.mem.Allocator) !i128 {
     return duration;
 }
 
-const Part = enum {
-    part1,
-    part2
-};
+const Part = enum { part1, part2 };
 
 fn solve(comptime part: Part, commands: []Command, allocator: std.mem.Allocator) !isize {
     var allX = std.ArrayList(isize).init(allocator);

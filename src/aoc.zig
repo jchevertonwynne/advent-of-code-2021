@@ -41,8 +41,8 @@ pub fn main() !void {
     // duration += try @import("./days/day19.zig").run(contents.day19, &writer, allocator);
     // duration += try @import("./days/day20.zig").run(contents.day20, &writer, allocator);
     // duration += try @import("./days/day21.zig").run(contents.day21, &writer);
-    duration += try @import("./days/day22.zig").run(contents.day22, &writer, allocator);
-    // duration += try @import("./days/day23.zig").run(contents.day23, &writer, allocator);
+    // duration += try @import("./days/day22.zig").run(contents.day22, &writer, allocator);
+    duration += try @import("./days/day23.zig").run(contents.day23, &writer, allocator);
     // duration += try @import("./days/day24.zig").run(&writer);
 
     try writer.print("aoc ran in:\n", .{});
