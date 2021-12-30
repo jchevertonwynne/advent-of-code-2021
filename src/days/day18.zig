@@ -25,6 +25,7 @@ fn part1(numbers: []SnailNumber) usize {
 
     return number.magnitude();
 }
+
 fn part2(numbers: []SnailNumber) usize {
     var best: usize = 0;
     for (numbers) |a, aInd| {
@@ -148,12 +149,27 @@ const SnailNumber = struct {
                 right = null;
             }
 
-            return ExplodeResult{ .left = left, .right = right, .explosionDone = true, .source = true };
+            return ExplodeResult{
+                .left = left,
+                .right = right,
+                .explosionDone = true,
+                .source = true,
+            };
         }
         if (i != 0 and self.contents[i - 1] != null) {
-            return ExplodeResult{ .left = null, .right = null, .explosionDone = false, .source = false };
+            return ExplodeResult{
+                .left = null,
+                .right = null,
+                .explosionDone = false,
+                .source = false,
+            };
         }
-        var result = ExplodeResult{ .left = null, .right = null, .explosionDone = false, .source = false };
+        var result = ExplodeResult{
+            .left = null,
+            .right = null,
+            .explosionDone = false,
+            .source = false,
+        };
         var leftResult = self._explode(i * 2 + 1, depth + 1);
         result.explosionDone = result.explosionDone or leftResult.explosionDone;
         if (leftResult.source) {
@@ -225,7 +241,12 @@ const SnailNumber = struct {
 
 const Side = enum { left, right };
 
-const ExplodeResult = struct { left: ?u8, right: ?u8, explosionDone: bool, source: bool };
+const ExplodeResult = struct {
+    left: ?u8,
+    right: ?u8,
+    explosionDone: bool,
+    source: bool,
+};
 
 fn loadNumbers(contents: []u8, allocator: std.mem.Allocator) ![]SnailNumber {
     var numbers = std.ArrayList(SnailNumber).init(allocator);

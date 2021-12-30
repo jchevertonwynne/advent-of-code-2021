@@ -28,13 +28,13 @@ fn loadLines(contents: []u8, allocator: std.mem.Allocator) ![]Line {
     while (ind < contents.len) {
         var line: Line = undefined;
         var size: usize = undefined;
-        util.toInt(i32, contents[ind..], &line.start.x, &size);
+        util.toSignedInt(i32, contents[ind..], &line.start.x, &size);
         ind += size + 1;
-        util.toInt(i32, contents[ind..], &line.start.y, &size);
+        util.toSignedInt(i32, contents[ind..], &line.start.y, &size);
         ind += size + 4;
-        util.toInt(i32, contents[ind..], &line.end.x, &size);
+        util.toSignedInt(i32, contents[ind..], &line.end.x, &size);
         ind += size + 1;
-        util.toInt(i32, contents[ind..], &line.end.y, &size);
+        util.toSignedInt(i32, contents[ind..], &line.end.y, &size);
         ind += size + 1;
 
         if (line.start.x > line.end.x)

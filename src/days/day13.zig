@@ -30,7 +30,7 @@ fn solve(instructions: Instructions, allocator: std.mem.Allocator, p1: *usize, p
     var first = true;
 
     for (instructions.folds) |fold| {
-        newDots.clear();
+        newDots.clearRetainingCapacity();
 
         var it = dots.iterator();
         while (it.next()) |dot| {
@@ -91,9 +91,9 @@ const Instructions = struct {
         while (contents[ind] != '\n') {
             var size: usize = undefined;
             var dot: Point = undefined;
-            util.toInt(usize, contents[ind..], &dot.x, &size);
+            util.toUnsignedInt(usize, contents[ind..], &dot.x, &size);
             ind += size + 1;
-            util.toInt(usize, contents[ind..], &dot.y, &size);
+            util.toUnsignedInt(usize, contents[ind..], &dot.y, &size);
             ind += size + 1;
             try dots.append(dot);
         }
@@ -102,7 +102,7 @@ const Instructions = struct {
         while (ind < contents.len) {
             var size: usize = undefined;
             var fold = Fold{ .direction = @intToEnum(Direction, contents[ind + 11]), .index = undefined };
-            util.toInt(usize, contents[ind + 13 ..], &fold.index, &size);
+            util.toUnsignedInt(usize, contents[ind + 13 ..], &fold.index, &size);
             ind += 13 + size + 1;
             try folds.append(fold);
         }

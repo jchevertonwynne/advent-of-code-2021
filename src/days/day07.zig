@@ -101,7 +101,7 @@ fn loadCrabs(contents: []u8, allocator: std.mem.Allocator) ![]usize {
     while (ind < contents.len) {
         var number: usize = undefined;
         var size: usize = 0;
-        util.toInt(usize, contents[ind..], &number, &size);
+        util.toUnsignedInt(usize, contents[ind..], &number, &size);
         try crabs.append(number);
         ind += size + 1;
     }

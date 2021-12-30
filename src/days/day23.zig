@@ -6,10 +6,10 @@ pub fn run(contents: []u8, out: anytype, allocator: std.mem.Allocator) !i128 {
     var start = std.time.nanoTimestamp();
 
     var state = State(2).load(contents);
-    // var p1: usize = try part1(state, allocator);
-    // var p1: usize = try solve(2, state, allocator);
-    var p1: usize = 0;
-    var p2: usize = try solve(4, state.enlargen(), allocator);
+    var p1: usize = try solve(2, state, allocator);
+    // var p1: usize = 0;
+    // var p2: usize = try solve(4, state.enlargen(), allocator);
+    var p2: usize = 0;
 
     var duration = std.time.nanoTimestamp() - start;
 
@@ -30,47 +30,51 @@ fn solve(comptime rows: usize, startingState: State(rows), allocator: std.mem.Al
     defer seenStates.deinit();
     try seenStates.put(startingState.min(), 0);
 
-    var bestCost: ?usize = null;
-
-    var transitions = std.ArrayList(TransitionResult(rows)).init(allocator);
+    var transitions = std.AutoHashMap(State(rows), usize).init(allocator);
     defer transitions.deinit();
+
+    var transitionsSeen = util.HashSet(MinState(rows)).init(allocator);
+    defer transitionsSeen.deinit();
+
+    var bestCost: ?usize = null;
 
     while (states.count() != 0) {
         newStates.clearRetainingCapacity();
 
         std.debug.print("to check = {}\n", .{states.count()});
 
-        var it = states.iterator();
+        var statesIterator = states.iterator();
+        while (statesIterator.next()) |entry| {
 
-        while (it.next()) |entry| {
+            // entry.key_ptr.print();
+
             if (bestCost) |cost| {
                 if (entry.value_ptr.* > cost)
                     continue;
             }
 
-            try entry.key_ptr.state().transition(&transitions);
-            for (transitions.items) |next| {
-                var newCost = entry.value_ptr.* + next.cost;
-                if (next.state.complete()) {
+            try entry.key_ptr.state().transition(&transitions, &transitionsSeen);
+            var transitionsIterator = transitions.iterator();
+            while (transitionsIterator.next()) |next| {
+                var newCost = entry.value_ptr.* + next.value_ptr.*;
+                if (next.key_ptr.complete()) {
                     if (bestCost) |cost| {
                         if (cost > newCost) {
                             bestCost = newCost;
                             std.debug.print("bestCost = {}\n", .{bestCost});
-                            next.state.print();
                         }
                     } else {
                         bestCost = newCost;
                         std.debug.print("bestCost = {}\n", .{bestCost});
-                        next.state.print();
                     }
 
                     continue;
                 }
 
-                var seenRecord = try seenStates.getOrPut(next.state.min());
+                var seenRecord = try seenStates.getOrPut(next.key_ptr.min());
                 if (!seenRecord.found_existing or seenRecord.value_ptr.* > newCost) {
                     seenRecord.value_ptr.* = newCost;
-                    try newStates.put(next.state.min(), newCost);
+                    try newStates.put(next.key_ptr.min(), newCost);
                 }
             }
         }
@@ -142,6 +146,10 @@ fn MinState(comptime rows: usize) type {
                 res.tiles[point.j][point.i] = .d;
 
             return res;
+        }
+
+        fn print(self: @This()) void {
+            self.state().print();
         }
     };
 }
@@ -235,85 +243,17 @@ fn State(comptime rows: usize) type {
             return completeA and completeB and completeC and completeD;
         }
 
-        fn transition(self: @This(), states: *std.ArrayList(TransitionResult(rows))) !void {
+        fn transition(
+            self: @This(),
+            states: *std.AutoHashMap(State(rows), usize),
+            seen: *util.HashSet(MinState(rows)),
+        ) !void {
             states.clearRetainingCapacity();
+            seen.clearRetainingCapacity();
             for (self.tiles) |row, j| {
                 for (row) |cell, i| {
                     if (cell.isLetter()) {
-                        var homeI: u4 = switch (cell) {
-                            .a => 3,
-                            .b => 5,
-                            .c => 7,
-                            .d => 9,
-                            else => undefined,
-                        };
-
-                        if (i == homeI and j > 1) {
-                            var allBelowAreCorrect = true;
-                            var legalToPlace = false;
-                            var pos = rows + 1;
-                            while (pos > j) : (pos -= 1) {
-                                allBelowAreCorrect = allBelowAreCorrect and self.tiles[pos][i] == cell;
-                                if (self.tiles[pos][i] != cell and self.tiles[pos][i] != .floor) {
-                                    legalToPlace = false;
-                                    break;
-                                }
-                                legalToPlace = self.tiles[pos][i] == .floor;
-                            }
-
-                            if (allBelowAreCorrect)
-                                continue;
-
-                            if (legalToPlace) {
-                                var copy = self;
-                                std.mem.swap(Tile, &copy.tiles[pos + 1][i], &copy.tiles[pos][i]);
-                                var cost = cell.cost();
-                                states.append(.{ .state = copy, .cost = cost }) catch unreachable;
-                                continue;
-                            }
-                        }
-
-                        const dirs = [4]struct { x: usize, negX: bool, y: usize, negY: bool }{
-                            .{ .x = 1, .negX = false, .y = 0, .negY = false },
-                            .{ .x = 1, .negX = true, .y = 0, .negY = false },
-                            .{ .x = 0, .negX = false, .y = 1, .negY = false },
-                            .{ .x = 0, .negX = false, .y = 1, .negY = true },
-                        };
-
-                        inline for (dirs) |dir| {
-                            var newI = if (dir.negX) i - dir.x else i + dir.x;
-                            var newJ = if (dir.negY) j - dir.y else j + dir.y;
-
-                            if (self.tiles[newJ][newI] == .floor) {
-                                var copy = self;
-                                std.mem.swap(Tile, &copy.tiles[j][i], &copy.tiles[newJ][newI]);
-                                var cost = cell.cost();
-                                try states.append(.{ .state = copy, .cost = cost });
-                            }
-
-                            if (self.tiles[newJ][newI] == .entry) {
-                                const redirects = [3]struct { x: usize, negX: bool, y: usize, negY: bool }{
-                                    .{ .x = 1, .negX = false, .y = 0, .negY = false },
-                                    .{ .x = 1, .negX = true, .y = 0, .negY = false },
-                                    .{ .x = 0, .negX = false, .y = 1, .negY = false },
-                                };
-
-                                for (redirects) |redirect| {
-                                    var newerI = if (redirect.negX) newI - redirect.x else newI + redirect.x;
-                                    var newerJ = if (redirect.negY) newJ - redirect.y else newJ + redirect.y;
-
-                                    if (newerI == i and newerJ == j)
-                                        continue;
-
-                                    if (self.tiles[newerJ][newerI] == .floor) {
-                                        var copy = self;
-                                        std.mem.swap(Tile, &copy.tiles[j][i], &copy.tiles[newerJ][newerI]);
-                                        var cost = cell.cost();
-                                        try states.append(.{ .state = copy, .cost = cost * 2 });
-                                    }
-                                }
-                            }
-                        }
+                        try explore(rows, self, i, j, 0, states, seen);
                     }
                 }
             }
@@ -333,7 +273,7 @@ fn State(comptime rows: usize) type {
         }
 
         fn load(contents: []u8) State(rows) {
-            if (rows != 2) 
+            if (rows != 2)
                 @compileError("can only load a 2 row state");
 
             var result: State(2) = undefined;
@@ -414,7 +354,7 @@ fn State(comptime rows: usize) type {
                         .b => 'B',
                         .c => 'C',
                         .d => 'D',
-                        .entry => '.',
+                        .entry => ',',
                         .floor => '.',
                         .wall => '#',
                     };
@@ -426,6 +366,64 @@ fn State(comptime rows: usize) type {
     };
 }
 
-fn TransitionResult(comptime rows: usize) type {
-    return struct { state: State(rows), cost: usize };
+fn explore(
+    comptime rows: usize,
+    state: State(rows),
+    i: usize,
+    j: usize,
+    runningCost: usize,
+    states: *std.AutoHashMap(State(rows), usize),
+    seen: *util.HashSet(MinState(rows)),
+) anyerror!void {
+    var moveCost = state.tiles[j][i].cost();
+
+    try seen.insert(state.min());
+
+    inline for ([_]struct { i: u1, iPos: bool, j: u1, jPos: bool }{
+        .{ .i = 1, .iPos = true, .j = 0, .jPos = true },
+        .{ .i = 1, .iPos = false, .j = 0, .jPos = true },
+        .{ .i = 0, .iPos = true, .j = 1, .jPos = true },
+        .{ .i = 0, .iPos = true, .j = 1, .jPos = false },
+    }) |dir| {
+        var newI = if (dir.iPos) i + dir.i else i - dir.i;
+        var newJ = if (dir.jPos) j + dir.j else j - dir.j;
+        if (state.tiles[newJ][newI] == .floor) {
+            var newState = state;
+            std.mem.swap(Tile, &newState.tiles[newJ][newI], &newState.tiles[j][i]);
+            var newCost = runningCost + moveCost;
+
+            if (!seen.contains(newState.min())) {
+                var entry = try states.getOrPut(newState);
+                if (!entry.found_existing or entry.value_ptr.* > newCost) {
+                    entry.value_ptr.* = newCost;
+                }
+
+                try explore(rows, newState, newI, newJ, newCost, states, seen);
+            }
+        } else if (state.tiles[newJ][newI] == .entry) {
+            inline for ([_]struct { x: usize, posX: bool, y: usize, posY: bool }{
+                .{ .x = 1, .posX = true, .y = 0, .posY = true },
+                .{ .x = 1, .posX = false, .y = 0, .posY = true },
+                .{ .x = 0, .posX = true, .y = 1, .posY = true },
+            }) |redirect| {
+                var newerI = if (redirect.posX) newI + redirect.x else newI - redirect.x;
+                var newerJ = if (redirect.posY) newJ + redirect.y else newJ - redirect.y;
+
+                if (!(newerI == i and newerJ == j) and state.tiles[newerJ][newerI] == .floor) {
+                    var newState = state;
+                    std.mem.swap(Tile, &newState.tiles[newerJ][newerI], &newState.tiles[j][i]);
+                    var newCost = runningCost + moveCost * 2;
+
+                    if (!seen.contains(newState.min())) {
+                        var entry = try states.getOrPut(newState);
+                        if (!entry.found_existing or entry.value_ptr.* > newCost) {
+                            entry.value_ptr.* = newCost;
+                        }
+
+                        try explore(rows, newState, newerI, newerJ, newCost, states, seen);
+                    }
+                }
+            }
+        }
+    }
 }

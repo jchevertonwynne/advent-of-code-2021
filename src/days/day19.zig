@@ -219,7 +219,7 @@ fn parseScanners(contents: []u8, allocator: std.mem.Allocator) ![]Scanner {
 
         var scanner: Scanner = .{ .number = undefined, .readings = std.ArrayList([24]Vec3).init(allocator) };
         errdefer scanner.readings.deinit();
-        util.toInt(usize, contents[ind..], &scanner.number, &size);
+        util.toUnsignedInt(usize, contents[ind..], &scanner.number, &size);
         ind += size + 5;
         while (ind + 1 < contents.len and contents[ind] != '\n') {
             var scanResult: Vec3 = undefined;
