@@ -7,7 +7,8 @@ pub fn run(contents: []u8, out: anytype, allocator: std.mem.Allocator) !i128 {
 
     var state = State(2).load(contents);
     // var p1: usize = try part1(state, allocator);
-    var p1: usize = try solve(2, state, allocator);
+    // var p1: usize = try solve(2, state, allocator);
+    var p1: usize = 0;
     var p2: usize = try solve(4, state.enlargen(), allocator);
 
     var duration = std.time.nanoTimestamp() - start;
@@ -331,8 +332,8 @@ fn State(comptime rows: usize) type {
             return result;
         }
 
-        fn load(contents: []u8) State(row) {
-            if (row != 2) 
+        fn load(contents: []u8) State(rows) {
+            if (rows != 2) 
                 @compileError("can only load a 2 row state");
 
             var result: State(2) = undefined;
