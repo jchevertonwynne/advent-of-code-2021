@@ -8,7 +8,7 @@ pub fn run(contents: []u8, out: anytype) !i128 {
     var game = Game.parse(contents);
 
     var p1: usize = game.play(&DeterministicDice.new());
-    var p2: usize = game.playParallel(0, &nullify([10][10][21][21]?Wins)).most();
+    var p2: usize = game.playParallel(0, &nulled([10][10][21][21]?Wins)).most();
     var duration = std.time.nanoTimestamp() - start;
 
     try util.writeResponse(out, 21, p1, p2, duration);
@@ -134,18 +134,18 @@ const DeterministicDice = struct {
     }
 };
 
-fn nullify(comptime array: type) array {
+fn nulled(comptime array: type) array {
     const arrayTypeInfo = @typeInfo(array);
     const arrayInfo = switch (arrayTypeInfo) {
         .Array => |arr| arr,
-        else => @compileError("please pass an array"),
+        else => @compileError("passed type must be an array"),
     };
     const childInfo = @typeInfo(arrayInfo.child);
 
     var res: array = undefined;
     for (res) |*item| {
         switch (childInfo) {
-            .Array => item.* = nullify(arrayInfo.child),
+            .Array => item.* = nulled(arrayInfo.child),
             .Optional => item.* = null,
             else => @compileError("nested types must be optional or array"),
         }

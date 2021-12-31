@@ -7,9 +7,9 @@ pub fn run(contents: []u8, out: anytype, allocator: std.mem.Allocator) !i128 {
 
     var state = State(2).load(contents);
     var p1: usize = try solve(2, state, allocator);
+    var p2: usize = 0;
     // var p1: usize = 0;
     // var p2: usize = try solve(4, state.enlargen(), allocator);
-    var p2: usize = 0;
 
     var duration = std.time.nanoTimestamp() - start;
 
@@ -18,17 +18,24 @@ pub fn run(contents: []u8, out: anytype, allocator: std.mem.Allocator) !i128 {
     return duration;
 }
 
+fn PrioQueueEntry(comptime rows: usize) type {
+    return struct {
+        minState: MinState(rows),
+        cost: usize,
+
+        fn compare(_: void, a: @This(), b: @This()) std.math.Order {
+            return std.math.order(a.cost, b.cost);
+        }
+    };
+}
+
 fn solve(comptime rows: usize, startingState: State(rows), allocator: std.mem.Allocator) !usize {
-    var states = std.AutoHashMap(MinState(rows), usize).init(allocator);
+    var states = std.PriorityDequeue(PrioQueueEntry(rows), void, PrioQueueEntry(rows).compare).init(allocator, {});
     defer states.deinit();
-    try states.put(startingState.min(), 0);
+    try states.add(.{ .minState = startingState.min(), .cost = 0 });
 
-    var newStates = std.AutoHashMap(MinState(rows), usize).init(allocator);
-    defer newStates.deinit();
-
-    var seenStates = std.AutoHashMap(MinState(rows), usize).init(allocator);
+    var seenStates = util.HashSet(MinState(rows)).init(allocator);
     defer seenStates.deinit();
-    try seenStates.put(startingState.min(), 0);
 
     var transitions = std.AutoHashMap(State(rows), usize).init(allocator);
     defer transitions.deinit();
@@ -36,53 +43,61 @@ fn solve(comptime rows: usize, startingState: State(rows), allocator: std.mem.Al
     var transitionsSeen = util.HashSet(MinState(rows)).init(allocator);
     defer transitionsSeen.deinit();
 
-    var bestCost: ?usize = null;
+    var bestSoFar: ?usize = null;
 
-    while (states.count() != 0) {
-        newStates.clearRetainingCapacity();
+    while (states.removeMinOrNull()) |*entry| {
+        if (entry.minState.complete())
+            return entry.cost;
 
-        std.debug.print("to check = {}\n", .{states.count()});
+        if (!try seenStates.insertCheck(entry.minState))
+            continue;
 
-        var statesIterator = states.iterator();
-        while (statesIterator.next()) |entry| {
+        try entry.minState.state().transition(&transitions, &transitionsSeen);
+        var transitionsIterator = transitions.iterator();
+        while (transitionsIterator.next()) |next| {
+            if (!seenStates.contains(next.key_ptr.min())) {
+                var newCost = entry.cost + next.value_ptr.*;
 
-            // entry.key_ptr.print();
-
-            if (bestCost) |cost| {
-                if (entry.value_ptr.* > cost)
-                    continue;
-            }
-
-            try entry.key_ptr.state().transition(&transitions, &transitionsSeen);
-            var transitionsIterator = transitions.iterator();
-            while (transitionsIterator.next()) |next| {
-                var newCost = entry.value_ptr.* + next.value_ptr.*;
-                if (next.key_ptr.complete()) {
-                    if (bestCost) |cost| {
-                        if (cost > newCost) {
-                            bestCost = newCost;
-                            std.debug.print("bestCost = {}\n", .{bestCost});
-                        }
-                    } else {
-                        bestCost = newCost;
-                        std.debug.print("bestCost = {}\n", .{bestCost});
+                if (bestSoFar) |best| {
+                    if (newCost <= best) {
+                        try states.add(.{ .minState = next.key_ptr.min(), .cost = newCost });
                     }
-
-                    continue;
+                } else {
+                    try states.add(.{ .minState = next.key_ptr.min(), .cost = newCost });
                 }
 
-                var seenRecord = try seenStates.getOrPut(next.key_ptr.min());
-                if (!seenRecord.found_existing or seenRecord.value_ptr.* > newCost) {
-                    seenRecord.value_ptr.* = newCost;
-                    try newStates.put(next.key_ptr.min(), newCost);
+                if (next.key_ptr.complete()) {
+                    if (bestSoFar) |best| {
+                        if (best > newCost) {
+                            bestSoFar = newCost;
+                            std.debug.print("found a potential best! - {}\n", .{newCost});
+                            var startLen = states.count();
+                            while (states.removeMaxOrNull()) |max| {
+                                if (max.cost <= newCost) {
+                                    try states.add(max);
+                                    break;
+                                }
+                            }
+                            std.debug.print("reduced from {} states to {} - removed {}\n", .{ startLen, states.count(), startLen - states.count() });
+                        }
+                    } else {
+                        bestSoFar = newCost;
+                        std.debug.print("found a potential best! - {}\n", .{newCost});
+                        var startLen = states.count();
+                        while (states.removeMaxOrNull()) |max| {
+                            if (max.minState.complete()) {
+                                try states.add(max);
+                                break;
+                            }
+                        }
+                        std.debug.print("reduced from {} states to {} - removed {}\n", .{ startLen, states.count(), startLen - states.count() });
+                    }
                 }
             }
         }
-
-        std.mem.swap(@TypeOf(states, newStates), &states, &newStates);
     }
 
-    return bestCost.?;
+    unreachable;
 }
 
 const Tile = enum {
@@ -151,6 +166,24 @@ fn MinState(comptime rows: usize) type {
         fn print(self: @This()) void {
             self.state().print();
         }
+
+        fn complete(self: @This()) bool {
+            const table = [_]struct { column: [rows]Point, index: usize }{
+                .{ .column = self.a, .index = 3 },
+                .{ .column = self.b, .index = 5 },
+                .{ .column = self.c, .index = 7 },
+                .{ .column = self.d, .index = 9 },
+            };
+            for (table) |t| {
+                for (t.column) |entry, i| {
+                    if (entry.i != t.index)
+                        return false;
+                    if (entry.j != 2 + i)
+                        return false;
+                }
+            }
+            return true;
+        }
     };
 }
 
@@ -165,44 +198,30 @@ fn State(comptime rows: usize) type {
             var c: usize = 0;
             var d: usize = 0;
 
+            const checks = [4]struct { tile: Tile, dest: *[rows]Point, counter: *usize }{
+                .{ .tile = .a, .dest = &res.a, .counter = &a },
+                .{ .tile = .b, .dest = &res.b, .counter = &b },
+                .{ .tile = .c, .dest = &res.c, .counter = &c },
+                .{ .tile = .d, .dest = &res.d, .counter = &d },
+            };
+
             for (self.tiles[1]) |cell, i| {
-                if (cell == .a) {
-                    res.a[a] = Point{ .i = @truncate(u4, i), .j = 1 };
-                    a += 1;
-                }
-                if (cell == .b) {
-                    res.b[b] = Point{ .i = @truncate(u4, i), .j = 1 };
-                    b += 1;
-                }
-                if (cell == .c) {
-                    res.c[c] = Point{ .i = @truncate(u4, i), .j = 1 };
-                    c += 1;
-                }
-                if (cell == .d) {
-                    res.d[d] = Point{ .i = @truncate(u4, i), .j = 1 };
-                    d += 1;
+                for (checks) |check| {
+                    if (cell == check.tile) {
+                        check.dest[check.counter.*] = Point{ .i = @truncate(u4, i), .j = 1 };
+                        check.counter.* += 1;
+                    }
                 }
             }
 
-            const verts = [4]u4{ 3, 5, 7, 9 };
-            inline for (verts) |i| {
+            inline for ([4]u4{ 3, 5, 7, 9 }) |i| {
                 var j: u4 = 2;
                 while (j < 2 + rows) : (j += 1) {
-                    if (self.tiles[j][i] == .a) {
-                        res.a[a] = Point{ .i = i, .j = j };
-                        a += 1;
-                    }
-                    if (self.tiles[j][i] == .b) {
-                        res.b[b] = Point{ .i = i, .j = j };
-                        b += 1;
-                    }
-                    if (self.tiles[j][i] == .c) {
-                        res.c[c] = Point{ .i = i, .j = j };
-                        c += 1;
-                    }
-                    if (self.tiles[j][i] == .d) {
-                        res.d[d] = Point{ .i = i, .j = j };
-                        d += 1;
+                    for (checks) |check| {
+                        if (self.tiles[j][i] == check.tile) {
+                            check.dest[check.counter.*] = Point{ .i = i, .j = j };
+                            check.counter.* += 1;
+                        }
                     }
                 }
             }
@@ -251,8 +270,26 @@ fn State(comptime rows: usize) type {
             states.clearRetainingCapacity();
             seen.clearRetainingCapacity();
             for (self.tiles) |row, j| {
-                for (row) |cell, i| {
+                row: for (row) |cell, i| {
                     if (cell.isLetter()) {
+                        const options = [_]struct { tile: Tile, column: usize }{
+                            .{ .tile = .a, .column = 3 },
+                            .{ .tile = .b, .column = 5 },
+                            .{ .tile = .c, .column = 7 },
+                            .{ .tile = .d, .column = 9 },
+                        };
+                        for (options) |opt| {
+                            if (cell == opt.tile and i == opt.column and j > 1) {
+                                var start: usize = 1 + rows;
+                                var safe = true;
+                                while (start > j) : (start -= 1) {
+                                    safe = safe and self.tiles[start][opt.column] == cell;
+                                }
+                                if (safe) {
+                                    continue :row;
+                                }
+                            }
+                        }
                         try explore(rows, self, i, j, 0, states, seen);
                     }
                 }
@@ -392,14 +429,12 @@ fn explore(
             std.mem.swap(Tile, &newState.tiles[newJ][newI], &newState.tiles[j][i]);
             var newCost = runningCost + moveCost;
 
-            if (!seen.contains(newState.min())) {
-                var entry = try states.getOrPut(newState);
-                if (!entry.found_existing or entry.value_ptr.* > newCost) {
-                    entry.value_ptr.* = newCost;
-                }
+            var entry = try states.getOrPut(newState);
+            if (!entry.found_existing or entry.value_ptr.* > newCost)
+                entry.value_ptr.* = newCost;
 
+            if (!entry.found_existing)
                 try explore(rows, newState, newI, newJ, newCost, states, seen);
-            }
         } else if (state.tiles[newJ][newI] == .entry) {
             inline for ([_]struct { x: usize, posX: bool, y: usize, posY: bool }{
                 .{ .x = 1, .posX = true, .y = 0, .posY = true },
@@ -412,16 +447,14 @@ fn explore(
                 if (!(newerI == i and newerJ == j) and state.tiles[newerJ][newerI] == .floor) {
                     var newState = state;
                     std.mem.swap(Tile, &newState.tiles[newerJ][newerI], &newState.tiles[j][i]);
-                    var newCost = runningCost + moveCost * 2;
+                    var newCost = runningCost + (moveCost * 2);
 
-                    if (!seen.contains(newState.min())) {
-                        var entry = try states.getOrPut(newState);
-                        if (!entry.found_existing or entry.value_ptr.* > newCost) {
-                            entry.value_ptr.* = newCost;
-                        }
+                    var entry = try states.getOrPut(newState);
+                    if (!entry.found_existing or entry.value_ptr.* > newCost)
+                        entry.value_ptr.* = newCost;
 
+                    if (!entry.found_existing)
                         try explore(rows, newState, newerI, newerJ, newCost, states, seen);
-                    }
                 }
             }
         }

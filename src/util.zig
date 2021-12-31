@@ -132,12 +132,8 @@ pub fn HashSet(comptime T: type) type {
         }
 
         pub fn insertCheck(self: *Self, val: T) !bool {
-            var contained = self.contains(val);
-            if (contained) {
-                return false;
-            }
-            try self.insert(val);
-            return true;
+            var entry = try self.map.getOrPut(val);
+            return !entry.found_existing;
         }
 
         pub fn insert(self: *Self, val: T) !void {
@@ -180,7 +176,7 @@ pub fn writeResponse(out: anytype, comptime day: usize, part1: anytype, part2: a
         try out.print("\ttime:\t{d}ns\n\n", .{duration});
     } else if (duration < 1_000_000) {
         try out.print("\ttime:\t{d}us\n\n", .{@divFloor(duration, 1_000)});
-    } else if (duration < 1_000_000_000){
+    } else if (duration < 1_000_000_000) {
         try out.print("\ttime:\t{d}ms\n\n", .{@divFloor(duration, 1_000_000)});
     } else {
         try out.print("\ttime:\t{d}s\n\n", .{@divFloor(duration, 1_000_000_000)});
@@ -190,7 +186,7 @@ pub fn writeResponse(out: anytype, comptime day: usize, part1: anytype, part2: a
 pub fn toUnsignedInt(comptime T: type, contents: []const u8, number: *T, size: *usize) void {
     if (@typeInfo(T).Int.signedness == .signed)
         @compileError("must supply a signed integer");
-        
+
     var result: T = 0;
     var characters: usize = 0;
 
