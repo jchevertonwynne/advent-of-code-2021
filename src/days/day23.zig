@@ -52,9 +52,16 @@ fn solve(comptime rows: usize, startingState: State(rows), allocator: std.mem.Al
         if (!try seenStates.insertCheck(entry.minState))
             continue;
 
-        try entry.minState.state().transition(&transitions, &transitionsSeen);
+        std.debug.print("looking at state\n", .{});
+        entry.minState.print();
+        std.debug.print("can go to states:\n", .{});
+
+        try entry.minState.state().transition(&transitions);
         var transitionsIterator = transitions.iterator();
         while (transitionsIterator.next()) |next| {
+            next.key_ptr.print();
+            std.debug.print("cost = {}\n", .{next.value_ptr.*});
+
             if (!seenStates.contains(next.key_ptr.min())) {
                 var newCost = entry.cost + next.value_ptr.*;
 
@@ -119,6 +126,16 @@ const Tile = enum {
             .b => 10,
             .c => 100,
             .d => 1000,
+            else => unreachable,
+        };
+    }
+
+    fn homeColumn(self: @This()) usize {
+        return switch (self) {
+            .a => 3,
+            .b => 5,
+            .c => 7,
+            .d => 9,
             else => unreachable,
         };
     }
@@ -265,32 +282,78 @@ fn State(comptime rows: usize) type {
         fn transition(
             self: @This(),
             states: *std.AutoHashMap(State(rows), usize),
-            seen: *util.HashSet(MinState(rows)),
         ) !void {
             states.clearRetainingCapacity();
-            seen.clearRetainingCapacity();
-            for (self.tiles) |row, j| {
-                row: for (row) |cell, i| {
-                    if (cell.isLetter()) {
-                        const options = [_]struct { tile: Tile, column: usize }{
-                            .{ .tile = .a, .column = 3 },
-                            .{ .tile = .b, .column = 5 },
-                            .{ .tile = .c, .column = 7 },
-                            .{ .tile = .d, .column = 9 },
-                        };
-                        for (options) |opt| {
-                            if (cell == opt.tile and i == opt.column and j > 1) {
-                                var start: usize = 1 + rows;
-                                var safe = true;
-                                while (start > j) : (start -= 1) {
-                                    safe = safe and self.tiles[start][opt.column] == cell;
-                                }
-                                if (safe) {
-                                    continue :row;
-                                }
+
+            for (self.tiles[1]) |cell, i| {
+                if (cell.isLetter()) {
+                    var homeColumn = cell.homeColumn();
+
+                    var canMoveToColumn = true;
+                    var x = if (homeColumn < i) homeColumn else i;
+                    var end = if (homeColumn < i) i else homeColumn;
+                    while (x <= end) : (x += 1) {
+                        if (x == i)
+                            continue;
+                        canMoveToColumn = canMoveToColumn and !self.tiles[1][x].isLetter();
+                    }
+                    if (!canMoveToColumn) {
+                        continue;
+                    }
+
+                    var canMoveIntoColumn = true;
+                    var y: usize = 2;
+                    while (y < rows + 2) : (y += 1) {
+                        canMoveIntoColumn = canMoveIntoColumn and (self.tiles[y][homeColumn] == .floor or self.tiles[y][homeColumn] == .entry);
+                    }
+                    if (!canMoveIntoColumn) {
+                        continue;
+                    }
+
+                     // TODO - if moving into home column it wants to go down as far as possible since it will stay there
+                    var rowMoveCost = if (i > homeColumn) i - homeColumn else homeColumn - i;
+                    y = 2;
+                    while (y < rows + 2) : (y += 1) {
+                        if (!self.tiles[y][homeColumn].isLetter()) {
+                            var cost = (rowMoveCost + (y - 2)) * cell.cost();
+                            var state = self;
+                            std.mem.swap(Tile, &state.tiles[y][homeColumn], &state.tiles[1][i]);
+                            try states.put(state, cost);
+                        }
+                    }
+                }
+            }
+
+            const columns = [4]usize{ 3, 5, 7, 9 };
+
+            for (columns) |column| {
+                var y: usize = 2;
+                while (y < rows + 2) : (y += 1) {
+                    if (self.tiles[y][column] == .floor) {
+                        continue;
+                    }
+                    if (self.tiles[y][column].isLetter()) {
+                        var distToHallway = y - 1;
+                        var x: usize = column;
+                        while (!self.tiles[1][x].isLetter() and self.tiles[1][x] != .wall) : (x += 1) {
+                            var distAlongHallway = x - column;
+                            if (self.tiles[1][x] == .floor) {
+                                var state = self;
+                                std.mem.swap(Tile, &state.tiles[1][x], &state.tiles[y][column]);
+                                try states.put(state, (distToHallway + distAlongHallway) * self.tiles[y][column].cost());
                             }
                         }
-                        try explore(rows, self, i, j, 0, states, seen);
+                        x = column;
+                        while (!self.tiles[1][x].isLetter() and self.tiles[1][x] != .wall) : (x -= 1) {
+                            var distAlongHallway = column - x;
+                            if (self.tiles[1][x] == .floor) {
+                                var state = self;
+                                std.mem.swap(Tile, &state.tiles[1][x], &state.tiles[y][column]);
+                                try states.put(state, (distToHallway + distAlongHallway) * self.tiles[y][column].cost());
+                            }
+                        }
+
+                        break;
                     }
                 }
             }
@@ -391,7 +454,7 @@ fn State(comptime rows: usize) type {
                         .b => 'B',
                         .c => 'C',
                         .d => 'D',
-                        .entry => ',',
+                        .entry => '.',
                         .floor => '.',
                         .wall => '#',
                     };
@@ -401,62 +464,4 @@ fn State(comptime rows: usize) type {
             }
         }
     };
-}
-
-fn explore(
-    comptime rows: usize,
-    state: State(rows),
-    i: usize,
-    j: usize,
-    runningCost: usize,
-    states: *std.AutoHashMap(State(rows), usize),
-    seen: *util.HashSet(MinState(rows)),
-) anyerror!void {
-    var moveCost = state.tiles[j][i].cost();
-
-    try seen.insert(state.min());
-
-    inline for ([_]struct { i: u1, iPos: bool, j: u1, jPos: bool }{
-        .{ .i = 1, .iPos = true, .j = 0, .jPos = true },
-        .{ .i = 1, .iPos = false, .j = 0, .jPos = true },
-        .{ .i = 0, .iPos = true, .j = 1, .jPos = true },
-        .{ .i = 0, .iPos = true, .j = 1, .jPos = false },
-    }) |dir| {
-        var newI = if (dir.iPos) i + dir.i else i - dir.i;
-        var newJ = if (dir.jPos) j + dir.j else j - dir.j;
-        if (state.tiles[newJ][newI] == .floor) {
-            var newState = state;
-            std.mem.swap(Tile, &newState.tiles[newJ][newI], &newState.tiles[j][i]);
-            var newCost = runningCost + moveCost;
-
-            var entry = try states.getOrPut(newState);
-            if (!entry.found_existing or entry.value_ptr.* > newCost)
-                entry.value_ptr.* = newCost;
-
-            if (!entry.found_existing)
-                try explore(rows, newState, newI, newJ, newCost, states, seen);
-        } else if (state.tiles[newJ][newI] == .entry) {
-            inline for ([_]struct { x: usize, posX: bool, y: usize, posY: bool }{
-                .{ .x = 1, .posX = true, .y = 0, .posY = true },
-                .{ .x = 1, .posX = false, .y = 0, .posY = true },
-                .{ .x = 0, .posX = true, .y = 1, .posY = true },
-            }) |redirect| {
-                var newerI = if (redirect.posX) newI + redirect.x else newI - redirect.x;
-                var newerJ = if (redirect.posY) newJ + redirect.y else newJ - redirect.y;
-
-                if (!(newerI == i and newerJ == j) and state.tiles[newerJ][newerI] == .floor) {
-                    var newState = state;
-                    std.mem.swap(Tile, &newState.tiles[newerJ][newerI], &newState.tiles[j][i]);
-                    var newCost = runningCost + (moveCost * 2);
-
-                    var entry = try states.getOrPut(newState);
-                    if (!entry.found_existing or entry.value_ptr.* > newCost)
-                        entry.value_ptr.* = newCost;
-
-                    if (!entry.found_existing)
-                        try explore(rows, newState, newerI, newerJ, newCost, states, seen);
-                }
-            }
-        }
-    }
 }
