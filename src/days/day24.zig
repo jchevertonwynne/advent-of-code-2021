@@ -2,19 +2,19 @@ const std = @import("std");
 
 const util = @import("../util.zig");
 
-const contents = @embedFile("../../files/24.txt");
-const instructions = loadInstructions();
-
-pub fn run(out: anytype) !i128 {
+pub fn run(contents: []u8, out: anytype, allocator: std.mem.Allocator) !i128 {
     var start = std.time.nanoTimestamp();
 
-    for (instructions) |i|
-        std.debug.print("{}\n", .{i});
+    var instructions = try loadInstructions(contents, allocator);
+    defer allocator.free(instructions);
 
-    var p1: isize = part1();
-    var p2: usize = 0;
+    var p = Permuations(3).new();
+    while (p.next()) |pe|
+        std.debug.print("{d}\n", .{pe});
 
-    std.debug.print("{}\n", .{try runMachine(11111111111111)});
+    var results = solve(instructions);
+    var p1: isize = results.max;
+    var p2: isize = results.min;
 
     var duration = std.time.nanoTimestamp() - start;
 
@@ -23,58 +23,92 @@ pub fn run(out: anytype) !i128 {
     return duration;
 }
 
-fn part1() isize {
-    var threads: [10]std.Thread = undefined;
-    var range: isize = 100_000_000_000_000;
-    var step: isize = 100_000_000;
-    var res: isize = 0;
-    var mutex = std.Thread.Mutex{};
-    while (res == 0) : (range -= step * 10) {
-        for (threads) |*t, i| {
-            t.* = std.Thread.spawn(.{}, runRange, .{ range - step * @intCast(isize, i + 1), range - step * @intCast(isize, i), &mutex, &res }) catch unreachable;
-        }
-        for (threads) |*t| {
-            t.join();
+const Results = struct { min: isize, max: isize };
+
+fn solve(instructions: []Instruction) Results {
+    var parts: [14][]Instruction = undefined;
+    {
+        var i: usize = 0;
+        while (i < 14) : (i += 1) {
+            parts[i] = instructions[18 * i .. 18 * (i + 1)];
         }
     }
-    return res;
+
+    var result = runPart(0, parts, [4]isize{ 0, 0, 0, 0 });
+    var min: isize = 0;
+    var max: isize = 0;
+    for (result.max.?) |m| {
+        min <<= 1;
+        min += m;
+    }
+    for (result.min.?) |m| {
+        max <<= 1;
+        max += m;
+    }
+    return .{ .min = min, .max = max };
 }
 
-fn runRange(start: isize, end: isize, found: *std.Thread.Mutex, val: *isize) void {
-    std.debug.print("{} {}\n", .{ start, std.time.milliTimestamp() });
-    defer std.debug.print("{} {}\n", .{ start, std.time.milliTimestamp() });
-    var i = start;
-    while (i < end) : (i += 1) {
-        var res = runMachine(i) catch false;
-        if (res) {
-            found.lock();
-            if (val.* < i)
-                val.* = i;
-            found.unlock();
+fn runPart(comptime index: usize, instructions: [14][]Instruction, initialState: [4]isize) PartResult(14 - index) {
+    var result: PartResult(14 - index) = .{ .min = null, .max = null };
+
+    var i: isize = 1;
+    while (i <= 9) : (i += 1) {
+        if (index < 8) {
+            var depth: usize = 0;
+            while (depth < index) : (depth += 1)
+                std.debug.print("  ", .{});
+            std.debug.print("{}\n", .{i});
+        }
+
+        var state = initialState;
+        state[0] = i;
+
+        var ranState = runMachine(instructions[index][1..], state);
+
+        if (index == 13) {
+            if (ranState[3] == 0) {
+                if (result.min == null)
+                    result.min = [1]isize{i};
+                result.max = [1]isize{i};
+            }
+        } else {
+            var subResult = runPart(index + 1, instructions, ranState);
+            if (subResult.min) |minSubResult| {
+                var x: [14 - index]isize = undefined;
+                x[0] = i;
+                std.mem.copy(isize, x[1..], &minSubResult);
+                if (result.min == null)
+                    result.min = x;
+                result.max = x;
+            }
+            if (subResult.max) |maxSubResult| {
+                var x: [14 - index]isize = undefined;
+                x[0] = i;
+                std.mem.copy(isize, x[1..], &maxSubResult);
+                if (result.min == null)
+                    result.min = x;
+                result.max = x;
+            }
         }
     }
+
+    return result;
 }
 
-fn runMachine(number: isize) !bool {
-    var stack = try std.BoundedArray(isize, 14).init(0);
-    var _n = number;
-    while (_n > 0) {
-        var unit = @mod(_n, 10);
-        if (unit == 0)
-            return false;
+fn PartResult(comptime size: usize) type {
+    return struct {
+        max: ?[size]isize,
+        min: ?[size]isize,
+    };
+}
 
-        try stack.append(unit);
-        _n = @divFloor(_n, 10);
-    }
-    if (stack.slice().len != 14)
-        return false;
+fn runMachine(instructions: []Instruction, _state: [4]isize) [4]isize {
+    var state = _state;
 
-    var state = [4]isize{ 0, 0, 0, 0 };
-
-    inline for (instructions) |instruction| {
+    for (instructions) |instruction| {
         switch (instruction) {
-            .input => |register| {
-                state[register] = stack.pop();
+            .input => {
+                @panic("please never send me for real lol");
             },
             .add => |params| {
                 state[params.register] += switch (params.value) {
@@ -109,19 +143,18 @@ fn runMachine(number: isize) !bool {
         }
     }
 
-    return state['z' - 'w'] == 0;
+    return state;
 }
 
-fn loadInstructions() [252]Instruction {
-    @setEvalBranchQuota(100000);
-    var _instructions: [252]Instruction = undefined;
+fn loadInstructions(contents: []u8, allocator: std.mem.Allocator) ![]Instruction {
+    var instructions = std.ArrayList(Instruction).init(allocator);
+    errdefer instructions.deinit();
 
     var ind: usize = 0;
-    var instructionIndex: usize = 0;
-    while (instructionIndex < 252) : (instructionIndex += 1) {
+    while (ind < contents.len) {
         const instruction = contents[ind .. ind + 3];
         if (std.mem.eql(u8, instruction, "inp")) {
-            _instructions[instructionIndex] = Instruction{ .input = contents[ind + 4] - 'w' };
+            try instructions.append(Instruction{ .input = contents[ind + 4] - 'w' });
             ind += 6;
         } else if (std.mem.eql(u8, instruction, "add")) {
             var newInstruction = Instruction{ .add = Params{ .register = contents[ind + 4] - 'w', .value = undefined } };
@@ -135,7 +168,7 @@ fn loadInstructions() [252]Instruction {
                 newInstruction.add.value = Value{ .literal = val };
                 ind += 6 + size + 1;
             }
-            _instructions[instructionIndex] = newInstruction;
+            try instructions.append(newInstruction);
         } else if (std.mem.eql(u8, instruction, "mul")) {
             var newInstruction = Instruction{ .mul = Params{ .register = contents[ind + 4] - 'w', .value = undefined } };
             if ('w' <= contents[ind + 6] and contents[ind + 6] <= 'z') {
@@ -148,7 +181,7 @@ fn loadInstructions() [252]Instruction {
                 newInstruction.mul.value = Value{ .literal = val };
                 ind += 6 + size + 1;
             }
-            _instructions[instructionIndex] = newInstruction;
+            try instructions.append(newInstruction);
         } else if (std.mem.eql(u8, instruction, "div")) {
             var newInstruction = Instruction{ .div = Params{ .register = contents[ind + 4] - 'w', .value = undefined } };
             if ('w' <= contents[ind + 6] and contents[ind + 6] <= 'z') {
@@ -161,7 +194,7 @@ fn loadInstructions() [252]Instruction {
                 newInstruction.div.value = Value{ .literal = val };
                 ind += 6 + size + 1;
             }
-            _instructions[instructionIndex] = newInstruction;
+            try instructions.append(newInstruction);
         } else if (std.mem.eql(u8, instruction, "mod")) {
             var newInstruction = Instruction{ .mod = Params{ .register = contents[ind + 4] - 'w', .value = undefined } };
             if ('w' <= contents[ind + 6] and contents[ind + 6] <= 'z') {
@@ -174,7 +207,7 @@ fn loadInstructions() [252]Instruction {
                 newInstruction.mod.value = Value{ .literal = val };
                 ind += 6 + size + 1;
             }
-            _instructions[instructionIndex] = newInstruction;
+            try instructions.append(newInstruction);
         } else if (std.mem.eql(u8, instruction, "eql")) {
             var newInstruction = Instruction{ .eql = Params{ .register = contents[ind + 4] - 'w', .value = undefined } };
             if ('w' <= contents[ind + 6] and contents[ind + 6] <= 'z') {
@@ -187,13 +220,13 @@ fn loadInstructions() [252]Instruction {
                 newInstruction.eql.value = Value{ .literal = val };
                 ind += 6 + size + 1;
             }
-            _instructions[instructionIndex] = newInstruction;
+            try instructions.append(newInstruction);
         } else {
             unreachable;
         }
     }
 
-    return _instructions;
+    return instructions.toOwnedSlice();
 }
 
 const Instruction = union(enum) {
@@ -214,3 +247,36 @@ const Value = union(enum) {
     literal: isize,
     register: u8,
 };
+
+fn Permuations(comptime size: usize) type {
+    return struct {
+        val: isize,
+        inner: if (size > 1) Permuations(size - 1) else void,
+
+        fn new() @This() {
+            return .{ .val = 0, .inner = if (size > 1) Permuations(size - 1).new() else {} };
+        }
+
+        fn next(self: *@This()) ?[size]isize {
+            if (size == 1) {
+                self.val += 1;
+                if (self.val == 10)
+                    return null;
+                return [1]isize{self.val};
+            }
+
+            var subResult = self.inner.next() orelse block: {
+                self.val += 1;
+                if (self.val == 10)
+                    return null;
+                self.inner = Permuations(size - 1).new();
+                break :block self.inner.next().?;
+            };
+
+            var result: [size]isize = undefined;
+            result[0] = self.val;
+            std.mem.copy(isize, result[1..], &subResult);
+            return result;
+        }
+    };
+}

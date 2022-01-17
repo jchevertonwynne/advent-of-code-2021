@@ -7,9 +7,7 @@ pub fn run(contents: []u8, out: anytype, allocator: std.mem.Allocator) !i128 {
 
     var state = State(2).load(contents);
     var p1: usize = try solve(2, state, allocator);
-    var p2: usize = 0;
-    // var p1: usize = 0;
-    // var p2: usize = try solve(4, state.enlargen(), allocator);
+    var p2: usize = try solve(4, state.enlargen(), allocator);
 
     var duration = std.time.nanoTimestamp() - start;
 
@@ -43,64 +41,20 @@ fn solve(comptime rows: usize, startingState: State(rows), allocator: std.mem.Al
     var transitionsSeen = util.HashSet(MinState(rows)).init(allocator);
     defer transitionsSeen.deinit();
 
-    var bestSoFar: ?usize = null;
-
     while (states.removeMinOrNull()) |*entry| {
-        if (entry.minState.complete())
+        if (entry.minState.complete()) {
             return entry.cost;
+        }
 
-        if (!try seenStates.insertCheck(entry.minState))
+        if (!try seenStates.insertCheck(entry.minState)) {
             continue;
-
-        std.debug.print("looking at state\n", .{});
-        entry.minState.print();
-        std.debug.print("can go to states:\n", .{});
+        }
 
         try entry.minState.state().transition(&transitions);
         var transitionsIterator = transitions.iterator();
         while (transitionsIterator.next()) |next| {
-            next.key_ptr.print();
-            std.debug.print("cost = {}\n", .{next.value_ptr.*});
-
-            if (!seenStates.contains(next.key_ptr.min())) {
-                var newCost = entry.cost + next.value_ptr.*;
-
-                if (bestSoFar) |best| {
-                    if (newCost <= best) {
-                        try states.add(.{ .minState = next.key_ptr.min(), .cost = newCost });
-                    }
-                } else {
-                    try states.add(.{ .minState = next.key_ptr.min(), .cost = newCost });
-                }
-
-                if (next.key_ptr.complete()) {
-                    if (bestSoFar) |best| {
-                        if (best > newCost) {
-                            bestSoFar = newCost;
-                            std.debug.print("found a potential best! - {}\n", .{newCost});
-                            var startLen = states.count();
-                            while (states.removeMaxOrNull()) |max| {
-                                if (max.cost <= newCost) {
-                                    try states.add(max);
-                                    break;
-                                }
-                            }
-                            std.debug.print("reduced from {} states to {} - removed {}\n", .{ startLen, states.count(), startLen - states.count() });
-                        }
-                    } else {
-                        bestSoFar = newCost;
-                        std.debug.print("found a potential best! - {}\n", .{newCost});
-                        var startLen = states.count();
-                        while (states.removeMaxOrNull()) |max| {
-                            if (max.minState.complete()) {
-                                try states.add(max);
-                                break;
-                            }
-                        }
-                        std.debug.print("reduced from {} states to {} - removed {}\n", .{ startLen, states.count(), startLen - states.count() });
-                    }
-                }
-            }
+            var newCost = entry.cost + next.value_ptr.*;
+            try states.add(.{ .minState = next.key_ptr.min(), .cost = newCost });
         }
     }
 
@@ -290,8 +244,8 @@ fn State(comptime rows: usize) type {
                     var homeColumn = cell.homeColumn();
 
                     var canMoveToColumn = true;
-                    var x = if (homeColumn < i) homeColumn else i;
-                    var end = if (homeColumn < i) i else homeColumn;
+                    var x = std.math.min(i, homeColumn);
+                    var end = std.math.max(i, homeColumn);
                     while (x <= end) : (x += 1) {
                         if (x == i)
                             continue;
@@ -304,30 +258,39 @@ fn State(comptime rows: usize) type {
                     var canMoveIntoColumn = true;
                     var y: usize = 2;
                     while (y < rows + 2) : (y += 1) {
-                        canMoveIntoColumn = canMoveIntoColumn and (self.tiles[y][homeColumn] == .floor or self.tiles[y][homeColumn] == .entry);
+                        canMoveIntoColumn = canMoveIntoColumn and (self.tiles[y][homeColumn] == .floor or self.tiles[y][homeColumn] == cell);
                     }
                     if (!canMoveIntoColumn) {
                         continue;
                     }
 
-                     // TODO - if moving into home column it wants to go down as far as possible since it will stay there
+                    // TODO - if moving into home column it wants to go down as far as possible since it will stay there
                     var rowMoveCost = if (i > homeColumn) i - homeColumn else homeColumn - i;
                     y = 2;
                     while (y < rows + 2) : (y += 1) {
                         if (!self.tiles[y][homeColumn].isLetter()) {
-                            var cost = (rowMoveCost + (y - 2)) * cell.cost();
+                            var cost = (rowMoveCost + (y - 1)) * cell.cost();
                             var state = self;
                             std.mem.swap(Tile, &state.tiles[y][homeColumn], &state.tiles[1][i]);
                             try states.put(state, cost);
+                        } else {
+                            break;
                         }
                     }
                 }
             }
 
-            const columns = [4]usize{ 3, 5, 7, 9 };
-
-            for (columns) |column| {
+            for ([_]usize{ 3, 5, 7, 9 }) |column| {
                 var y: usize = 2;
+                var rowComplete = true;
+                while (y < rows + 2) : (y += 1) {
+                    rowComplete = rowComplete and (self.tiles[y][column].isLetter() and self.tiles[y][column].homeColumn() == column);
+                }
+                if (rowComplete) {
+                    continue;
+                }
+
+                y = 2;
                 while (y < rows + 2) : (y += 1) {
                     if (self.tiles[y][column] == .floor) {
                         continue;

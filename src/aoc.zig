@@ -43,7 +43,7 @@ pub fn main() !void {
     // duration += try @import("./days/day21.zig").run(contents.day21, &writer);
     // duration += try @import("./days/day22.zig").run(contents.day22, &writer, allocator);
     duration += try @import("./days/day23.zig").run(contents.day23, &writer, allocator);
-    // duration += try @import("./days/day24.zig").run(&writer);
+    // duration += try @import("./days/day24.zig").run(contents.day24, &writer, allocator);
 
     try writer.print("aoc ran in:\n", .{});
     try writer.print("\t{d}s\n", .{@divFloor(duration, 1_000_000_000)});
