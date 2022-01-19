@@ -72,8 +72,7 @@ fn runPart(comptime index: usize, instructions: [14][]Instruction, initialState:
         if (entry.found_existing) {
             state[0] = entry.value_ptr[0];
             state[3] = entry.value_ptr[1];
-        }
-        else {
+        } else {
             state = runMachine(instructions[index][1..], state);
             entry.value_ptr.* = .{ state[0], state[3] };
         }

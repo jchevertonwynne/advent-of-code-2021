@@ -27,9 +27,6 @@ fn solve(comptime rows: usize, startingState: State(rows), allocator: std.mem.Al
     var transitions = std.ArrayList(TransitionResult(rows)).init(allocator);
     defer transitions.deinit();
 
-    var transitionsSeen = util.HashSet(MinState(rows)).init(allocator);
-    defer transitionsSeen.deinit();
-
     while (states.removeMinOrNull()) |*entry| {
         if (entry.minState.complete()) {
             return entry.cost;
@@ -61,10 +58,7 @@ fn PrioQueueEntry(comptime rows: usize) type {
 }
 
 fn TransitionResult(comptime rows: usize) type {
-    return struct {
-        state: State(rows),
-        cost: usize
-    };
+    return struct { state: State(rows), cost: usize };
 }
 
 const Tile = enum {
@@ -277,7 +271,7 @@ fn State(comptime rows: usize) type {
                             var cost = (rowMoveCost + (y - 1)) * cell.cost();
                             var state = self;
                             std.mem.swap(Tile, &state.tiles[y][homeColumn], &state.tiles[1][i]);
-                            try states.append(.{ .state = state, .cost = cost});
+                            try states.append(.{ .state = state, .cost = cost });
                             break;
                         }
                     }
@@ -308,7 +302,7 @@ fn State(comptime rows: usize) type {
                                 var state = self;
                                 std.mem.swap(Tile, &state.tiles[1][x], &state.tiles[y][column]);
                                 var cost = (distToHallway + distAlongHallway) * self.tiles[y][column].cost();
-                                try states.append(.{ .state = state, .cost = cost});
+                                try states.append(.{ .state = state, .cost = cost });
                             }
                         }
                         x = column;
@@ -318,7 +312,7 @@ fn State(comptime rows: usize) type {
                                 var state = self;
                                 std.mem.swap(Tile, &state.tiles[1][x], &state.tiles[y][column]);
                                 var cost = (distToHallway + distAlongHallway) * self.tiles[y][column].cost();
-                                try states.append(.{ .state = state, .cost = cost});
+                                try states.append(.{ .state = state, .cost = cost });
                             }
                         }
 
@@ -347,70 +341,32 @@ fn State(comptime rows: usize) type {
 
             var result: State(2) = undefined;
             for (result.tiles) |*row| {
-                for (row) |*cell|
-                    cell.* = .wall;
+                row.* = .{ .wall, .wall, .wall, .wall, .wall, .wall, .wall, .wall, .wall, .wall, .wall, .wall, .wall };
             }
 
             for (result.tiles[1][1..12]) |*cell|
                 cell.* = .floor;
 
-            result.tiles[2][3] = switch (contents[31]) {
-                'A' => .a,
-                'B' => .b,
-                'C' => .c,
-                'D' => .d,
-                else => unreachable,
-            };
-            result.tiles[2][5] = switch (contents[33]) {
-                'A' => .a,
-                'B' => .b,
-                'C' => .c,
-                'D' => .d,
-                else => unreachable,
-            };
-            result.tiles[2][7] = switch (contents[35]) {
-                'A' => .a,
-                'B' => .b,
-                'C' => .c,
-                'D' => .d,
-                else => unreachable,
-            };
-            result.tiles[2][9] = switch (contents[37]) {
-                'A' => .a,
-                'B' => .b,
-                'C' => .c,
-                'D' => .d,
-                else => unreachable,
+            const tiles = [_]struct { i: usize, j: usize, index: usize }{
+                .{ .j = 2, .i = 3, .index = 31 },
+                .{ .j = 2, .i = 5, .index = 33 },
+                .{ .j = 2, .i = 7, .index = 35 },
+                .{ .j = 2, .i = 9, .index = 37 },
+                .{ .j = 3, .i = 3, .index = 45 },
+                .{ .j = 3, .i = 5, .index = 47 },
+                .{ .j = 3, .i = 7, .index = 49 },
+                .{ .j = 3, .i = 9, .index = 51 },
             };
 
-            result.tiles[3][3] = switch (contents[45]) {
-                'A' => .a,
-                'B' => .b,
-                'C' => .c,
-                'D' => .d,
-                else => unreachable,
-            };
-            result.tiles[3][5] = switch (contents[47]) {
-                'A' => .a,
-                'B' => .b,
-                'C' => .c,
-                'D' => .d,
-                else => unreachable,
-            };
-            result.tiles[3][7] = switch (contents[49]) {
-                'A' => .a,
-                'B' => .b,
-                'C' => .c,
-                'D' => .d,
-                else => unreachable,
-            };
-            result.tiles[3][9] = switch (contents[51]) {
-                'A' => .a,
-                'B' => .b,
-                'C' => .c,
-                'D' => .d,
-                else => unreachable,
-            };
+            inline for (tiles) |tile| {
+                result.tiles[tile.j][tile.i] = switch (contents[tile.index]) {
+                    'A' => .a,
+                    'B' => .b,
+                    'C' => .c,
+                    'D' => .d,
+                    else => unreachable,
+                };
+            }
 
             return result;
         }
@@ -423,8 +379,7 @@ fn State(comptime rows: usize) type {
                         .b => 'B',
                         .c => 'C',
                         .d => 'D',
-                        .entry => '.',
-                        .floor => '.',
+                        .entry, .floor => '.',
                         .wall => '#',
                     };
                     std.debug.print("{c}", .{tile});
