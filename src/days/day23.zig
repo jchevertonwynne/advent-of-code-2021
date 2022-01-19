@@ -16,17 +16,6 @@ pub fn run(contents: []u8, out: anytype, allocator: std.mem.Allocator) !i128 {
     return duration;
 }
 
-fn PrioQueueEntry(comptime rows: usize) type {
-    return struct {
-        minState: MinState(rows),
-        cost: usize,
-
-        fn compare(_: void, a: @This(), b: @This()) std.math.Order {
-            return std.math.order(a.cost, b.cost);
-        }
-    };
-}
-
 fn solve(comptime rows: usize, startingState: State(rows), allocator: std.mem.Allocator) !usize {
     var states = std.PriorityDequeue(PrioQueueEntry(rows), void, PrioQueueEntry(rows).compare).init(allocator, {});
     defer states.deinit();
@@ -35,7 +24,7 @@ fn solve(comptime rows: usize, startingState: State(rows), allocator: std.mem.Al
     var seenStates = util.HashSet(MinState(rows)).init(allocator);
     defer seenStates.deinit();
 
-    var transitions = std.AutoHashMap(State(rows), usize).init(allocator);
+    var transitions = std.ArrayList(TransitionResult(rows)).init(allocator);
     defer transitions.deinit();
 
     var transitionsSeen = util.HashSet(MinState(rows)).init(allocator);
@@ -51,14 +40,31 @@ fn solve(comptime rows: usize, startingState: State(rows), allocator: std.mem.Al
         }
 
         try entry.minState.state().transition(&transitions);
-        var transitionsIterator = transitions.iterator();
-        while (transitionsIterator.next()) |next| {
-            var newCost = entry.cost + next.value_ptr.*;
-            try states.add(.{ .minState = next.key_ptr.min(), .cost = newCost });
+        for (transitions.items) |next| {
+            var newCost = entry.cost + next.cost;
+            try states.add(.{ .minState = next.state.min(), .cost = newCost });
         }
     }
 
     unreachable;
+}
+
+fn PrioQueueEntry(comptime rows: usize) type {
+    return struct {
+        minState: MinState(rows),
+        cost: usize,
+
+        fn compare(_: void, a: @This(), b: @This()) std.math.Order {
+            return std.math.order(a.cost, b.cost);
+        }
+    };
+}
+
+fn TransitionResult(comptime rows: usize) type {
+    return struct {
+        state: State(rows),
+        cost: usize
+    };
 }
 
 const Tile = enum {
@@ -235,7 +241,7 @@ fn State(comptime rows: usize) type {
 
         fn transition(
             self: @This(),
-            states: *std.AutoHashMap(State(rows), usize),
+            states: *std.ArrayList(TransitionResult(rows)),
         ) !void {
             states.clearRetainingCapacity();
 
@@ -271,7 +277,7 @@ fn State(comptime rows: usize) type {
                             var cost = (rowMoveCost + (y - 1)) * cell.cost();
                             var state = self;
                             std.mem.swap(Tile, &state.tiles[y][homeColumn], &state.tiles[1][i]);
-                            try states.put(state, cost);
+                            try states.append(.{ .state = state, .cost = cost});
                             break;
                         }
                     }
@@ -301,7 +307,8 @@ fn State(comptime rows: usize) type {
                             if (self.tiles[1][x] == .floor) {
                                 var state = self;
                                 std.mem.swap(Tile, &state.tiles[1][x], &state.tiles[y][column]);
-                                try states.put(state, (distToHallway + distAlongHallway) * self.tiles[y][column].cost());
+                                var cost = (distToHallway + distAlongHallway) * self.tiles[y][column].cost();
+                                try states.append(.{ .state = state, .cost = cost});
                             }
                         }
                         x = column;
@@ -310,7 +317,8 @@ fn State(comptime rows: usize) type {
                             if (self.tiles[1][x] == .floor) {
                                 var state = self;
                                 std.mem.swap(Tile, &state.tiles[1][x], &state.tiles[y][column]);
-                                try states.put(state, (distToHallway + distAlongHallway) * self.tiles[y][column].cost());
+                                var cost = (distToHallway + distAlongHallway) * self.tiles[y][column].cost();
+                                try states.append(.{ .state = state, .cost = cost});
                             }
                         }
 
