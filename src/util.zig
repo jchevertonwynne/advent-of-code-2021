@@ -127,7 +127,7 @@ pub fn HashSet(comptime T: type) type {
             return .{ .map = mapType.init(allocator) };
         }
 
-        pub fn count(self: Self) u32 {
+        pub fn count(self: Self) u64 {
             return self.map.count();
         }
 

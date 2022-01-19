@@ -264,16 +264,14 @@ fn State(comptime rows: usize) type {
                         continue;
                     }
 
-                    // TODO - if moving into home column it wants to go down as far as possible since it will stay there
                     var rowMoveCost = if (i > homeColumn) i - homeColumn else homeColumn - i;
-                    y = 2;
-                    while (y < rows + 2) : (y += 1) {
+                    y = rows + 1;
+                    while (y > 1) : (y -= 1) {
                         if (!self.tiles[y][homeColumn].isLetter()) {
                             var cost = (rowMoveCost + (y - 1)) * cell.cost();
                             var state = self;
                             std.mem.swap(Tile, &state.tiles[y][homeColumn], &state.tiles[1][i]);
                             try states.put(state, cost);
-                        } else {
                             break;
                         }
                     }

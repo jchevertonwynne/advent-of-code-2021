@@ -8,11 +8,7 @@ pub fn run(contents: []u8, out: anytype, allocator: std.mem.Allocator) !i128 {
     var instructions = try loadInstructions(contents, allocator);
     defer allocator.free(instructions);
 
-    var p = Permuations(3).new();
-    while (p.next()) |pe|
-        std.debug.print("{d}\n", .{pe});
-
-    var results = solve(instructions);
+    var results = try solve(instructions, allocator);
     var p1: isize = results.max;
     var p2: isize = results.min;
 
@@ -25,16 +21,24 @@ pub fn run(contents: []u8, out: anytype, allocator: std.mem.Allocator) !i128 {
 
 const Results = struct { min: isize, max: isize };
 
-fn solve(instructions: []Instruction) Results {
+fn solve(instructions: []Instruction, allocator: std.mem.Allocator) !Results {
     var parts: [14][]Instruction = undefined;
-    {
-        var i: usize = 0;
-        while (i < 14) : (i += 1) {
-            parts[i] = instructions[18 * i .. 18 * (i + 1)];
+    var i: usize = 0;
+    while (i < 14) : (i += 1) {
+        parts[i] = instructions[18 * i .. 18 * (i + 1)];
+    }
+
+    var cache: [14]std.AutoHashMap([2]isize, [2]isize) = undefined;
+    for (cache) |*c| {
+        c.* = std.AutoHashMap([2]isize, [2]isize).init(allocator);
+    }
+    defer {
+        for (cache) |*c| {
+            c.deinit();
         }
     }
 
-    var result = runPart(0, parts, [4]isize{ 0, 0, 0, 0 });
+    var result = try runPart(0, parts, [4]isize{ 0, 0, 0, 0 }, &cache);
     var min: isize = 0;
     var max: isize = 0;
     for (result.max.?) |m| {
@@ -45,15 +49,15 @@ fn solve(instructions: []Instruction) Results {
         max <<= 1;
         max += m;
     }
-    return .{ .min = min, .max = max };
+    return Results{ .min = min, .max = max };
 }
 
-fn runPart(comptime index: usize, instructions: [14][]Instruction, initialState: [4]isize) PartResult(14 - index) {
+fn runPart(comptime index: usize, instructions: [14][]Instruction, initialState: [4]isize, cache: *[14]std.AutoHashMap([2]isize, [2]isize)) anyerror!PartResult(14 - index) {
     var result: PartResult(14 - index) = .{ .min = null, .max = null };
 
     var i: isize = 1;
     while (i <= 9) : (i += 1) {
-        if (index < 8) {
+        if (index < 6) {
             var depth: usize = 0;
             while (depth < index) : (depth += 1)
                 std.debug.print("  ", .{});
@@ -63,16 +67,25 @@ fn runPart(comptime index: usize, instructions: [14][]Instruction, initialState:
         var state = initialState;
         state[0] = i;
 
-        var ranState = runMachine(instructions[index][1..], state);
+        var initStateMin = .{ state[0], state[3] };
+        var entry = try cache.*[index].getOrPut(initStateMin);
+        if (entry.found_existing) {
+            state[0] = entry.value_ptr[0];
+            state[3] = entry.value_ptr[1];
+        }
+        else {
+            state = runMachine(instructions[index][1..], state);
+            entry.value_ptr.* = .{ state[0], state[3] };
+        }
 
         if (index == 13) {
-            if (ranState[3] == 0) {
+            if (state[3] == 0) {
                 if (result.min == null)
                     result.min = [1]isize{i};
                 result.max = [1]isize{i};
             }
         } else {
-            var subResult = runPart(index + 1, instructions, ranState);
+            var subResult = try runPart(index + 1, instructions, state, cache);
             if (subResult.min) |minSubResult| {
                 var x: [14 - index]isize = undefined;
                 x[0] = i;
@@ -247,36 +260,3 @@ const Value = union(enum) {
     literal: isize,
     register: u8,
 };
-
-fn Permuations(comptime size: usize) type {
-    return struct {
-        val: isize,
-        inner: if (size > 1) Permuations(size - 1) else void,
-
-        fn new() @This() {
-            return .{ .val = 0, .inner = if (size > 1) Permuations(size - 1).new() else {} };
-        }
-
-        fn next(self: *@This()) ?[size]isize {
-            if (size == 1) {
-                self.val += 1;
-                if (self.val == 10)
-                    return null;
-                return [1]isize{self.val};
-            }
-
-            var subResult = self.inner.next() orelse block: {
-                self.val += 1;
-                if (self.val == 10)
-                    return null;
-                self.inner = Permuations(size - 1).new();
-                break :block self.inner.next().?;
-            };
-
-            var result: [size]isize = undefined;
-            result[0] = self.val;
-            std.mem.copy(isize, result[1..], &subResult);
-            return result;
-        }
-    };
-}
