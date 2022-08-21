@@ -9,7 +9,7 @@ pub fn run(contents: []u8, out: anytype, allocator: std.mem.Allocator) !i128 {
     var bits = try toBits(contents[0..newLine], allocator);
     defer allocator.free(bits);
 
-    var packet = (try BITSPacket.parse(bits, allocator)).packet;
+    var packet = (try BITS.parse(bits, allocator)).packet;
     defer packet.deinit(allocator);
 
     var p1: usize = packet.versionSum();
@@ -22,16 +22,126 @@ pub fn run(contents: []u8, out: anytype, allocator: std.mem.Allocator) !i128 {
     return duration;
 }
 
-const BITSPacketResult = struct { packet: BITSPacket, remaining: []u1 };
+const BITSResult = struct {
+    packet: BITS,
+    remaining: []u1,
+};
 
-const BITSPacket = struct {
+const Operator = enum(u3) {
+    sum = 0,
+    product = 1,
+    minimum = 2,
+    maximum = 3,
+    gt = 5,
+    lt = 6,
+    eq = 7,
+};
+
+const BITSOperator = struct {
+    const Self = @This();
+
+    op: Operator,
+    subpackets: []BITS,
+
+    fn versionSum(self: Self) usize {
+        var sum: usize = 0;
+        for (self.subpackets) |subpacket| {
+            sum += subpacket.versionSum();
+        }
+        return sum;
+    }
+
+    fn value(self: Self) usize {
+        return switch (self.op) {
+            .sum => block: {
+                var sum: usize = 0;
+                for (self.subpackets) |subpacket| {
+                    sum += subpacket.value();
+                }
+                break :block sum;
+            },
+            .product => block: {
+                var product: usize = 1;
+                for (self.subpackets) |subpacket| {
+                    product *= subpacket.value();
+                }
+                break :block product;
+            },
+            .minimum => block: {
+                var minimum: usize = self.subpackets[0].value();
+                for (self.subpackets) |subpacket| {
+                    minimum = std.math.min(minimum, subpacket.value());
+                }
+                break :block minimum;
+            },
+            .maximum => block: {
+                var maximum: usize = self.subpackets[0].value();
+                for (self.subpackets) |subpacket| {
+                    maximum = std.math.max(maximum, subpacket.value());
+                }
+                break :block maximum;
+            },
+            .gt => @boolToInt(self.subpackets[0].value() > self.subpackets[1].value()),
+            .lt => @boolToInt(self.subpackets[0].value() < self.subpackets[1].value()),
+            .eq => @boolToInt(self.subpackets[0].value() == self.subpackets[1].value()),
+        };
+    }
+
+    fn deinit(self: *Self, alloc: std.mem.Allocator) void {
+        for (self.subpackets) |*sub| {
+            sub.deinit(alloc);
+        }
+        alloc.free(self.subpackets);
+    }
+};
+
+const BITSContents = union(enum) {
+    const Self = @This();
+
+    literal: usize,
+    operator: BITSOperator,
+
+    fn versionSum(self: Self) usize {
+        return switch (self) {
+            .literal => 0,
+            .operator => |operator| operator.versionSum(),
+        };
+    }
+
+    fn value(self: Self) usize {
+        return switch (self) {
+            .literal => |literal| literal,
+            .operator => |operator| operator.value(),
+        };
+    }
+
+    fn deinit(self: *Self, alloc: std.mem.Allocator) void {
+        switch (self.*) {
+            .literal => {},
+            .operator => |*op| op.deinit(alloc),
+        }
+    }
+};
+
+const BITS = struct {
+    const Self = @This();
+
     packetVersion: u3,
-    packetType: u3,
-    literal: ?usize,
-    subpackets: ?[]BITSPacket,
+    contents: BITSContents,
 
-    fn parse(bits: []u1, allocator: std.mem.Allocator) anyerror!BITSPacketResult {
-        var result: @This() = .{ .packetVersion = 0, .packetType = 0, .literal = null, .subpackets = null };
+    fn value(self: Self) usize {
+        return self.contents.value();
+    }
+
+    fn versionSum(self: Self) usize {
+        return @as(usize, self.packetVersion) + self.contents.versionSum();
+    }
+
+    fn parse(bits: []u1, allocator: std.mem.Allocator) anyerror!BITSResult {
+        var result: Self = .{
+            .packetVersion = 0,
+            .contents = undefined,
+        };
 
         result.packetVersion += bits[0];
         result.packetVersion <<= 1;
@@ -39,13 +149,14 @@ const BITSPacket = struct {
         result.packetVersion <<= 1;
         result.packetVersion += bits[2];
 
-        result.packetType += bits[3];
-        result.packetType <<= 1;
-        result.packetType += bits[4];
-        result.packetType <<= 1;
-        result.packetType += bits[5];
+        var packetType: u3 = 0;
+        packetType += bits[3];
+        packetType <<= 1;
+        packetType += bits[4];
+        packetType <<= 1;
+        packetType += bits[5];
 
-        if (result.packetType == 4) {
+        if (packetType == 4) {
             var literal: usize = 0;
             var ind: usize = 6;
             var segment = bits[ind .. ind + 5];
@@ -59,9 +170,14 @@ const BITSPacket = struct {
                 ind += 5;
                 segment = bits[ind .. ind + 5];
             }
-            result.literal = literal;
-            return BITSPacketResult{ .packet = result, .remaining = bits[ind + 5 ..] };
+            result.contents = .{ .literal = literal };
+            return BITSResult{ .packet = result, .remaining = bits[ind + 5 ..] };
         } else {
+            var op = BITSOperator{
+                .op = @intToEnum(Operator, packetType),
+                .subpackets = undefined,
+            };
+
             var lengthTypeID = bits[6];
             if (lengthTypeID == 0) {
                 var totalLength: usize = 0;
@@ -71,15 +187,16 @@ const BITSPacket = struct {
                 }
                 var remaining = bits[22..];
                 var startLen = remaining.len;
-                var subpackets = std.ArrayList(BITSPacket).init(allocator);
+                var subpackets = std.ArrayList(BITS).init(allocator);
                 errdefer subpackets.deinit();
                 while (startLen - remaining.len != totalLength) {
-                    var subpacket = try BITSPacket.parse(remaining, allocator);
+                    var subpacket = try BITS.parse(remaining, allocator);
                     try subpackets.append(subpacket.packet);
                     remaining = subpacket.remaining;
                 }
-                result.subpackets = subpackets.toOwnedSlice();
-                return BITSPacketResult{ .packet = result, .remaining = remaining };
+                op.subpackets = subpackets.toOwnedSlice();
+                result.contents = BITSContents{ .operator = op };
+                return BITSResult{ .packet = result, .remaining = remaining };
             } else {
                 var totalFollowing: usize = 0;
                 for (bits[7..18]) |t| {
@@ -87,72 +204,23 @@ const BITSPacket = struct {
                     totalFollowing += t;
                 }
                 var remaining = bits[18..];
-                var subpackets = std.ArrayList(BITSPacket).init(allocator);
+                var subpackets = std.ArrayList(BITS).init(allocator);
                 errdefer subpackets.deinit();
                 var i: usize = 0;
                 while (i < totalFollowing) : (i += 1) {
-                    var subpacket = try BITSPacket.parse(remaining, allocator);
+                    var subpacket = try BITS.parse(remaining, allocator);
                     try subpackets.append(subpacket.packet);
                     remaining = subpacket.remaining;
                 }
-                result.subpackets = subpackets.toOwnedSlice();
-                return BITSPacketResult{ .packet = result, .remaining = remaining };
+                op.subpackets = subpackets.toOwnedSlice();
+                result.contents = BITSContents{ .operator = op };
+                return BITSResult{ .packet = result, .remaining = remaining };
             }
         }
-
-        return result;
     }
 
-    fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
-        if (self.subpackets) |*subpackets| {
-            for (subpackets.*) |*s|
-                s.deinit(allocator);
-            allocator.free(subpackets.*);
-        }
-    }
-
-    fn versionSum(self: @This()) usize {
-        var result: usize = self.packetVersion;
-
-        if (self.subpackets) |subpackets| {
-            for (subpackets) |s|
-                result += s.versionSum();
-        }
-
-        return result;
-    }
-
-    fn value(self: @This()) usize {
-        switch (self.packetType) {
-            0 => {
-                var sum: usize = 0;
-                for (self.subpackets.?) |subpacket|
-                    sum += subpacket.value();
-                return sum;
-            },
-            1 => {
-                var product: usize = 1;
-                for (self.subpackets.?) |subpacket|
-                    product *= subpacket.value();
-                return product;
-            },
-            2 => {
-                var minimum: usize = std.math.maxInt(usize);
-                for (self.subpackets.?) |subpacket|
-                    minimum = std.math.min(minimum, subpacket.value());
-                return minimum;
-            },
-            3 => {
-                var maximum: usize = std.math.minInt(usize);
-                for (self.subpackets.?) |subpacket|
-                    maximum = std.math.max(maximum, subpacket.value());
-                return maximum;
-            },
-            4 => return self.literal.?,
-            5 => return if (self.subpackets.?[0].value() > self.subpackets.?[1].value()) 1 else 0,
-            6 => return if (self.subpackets.?[0].value() < self.subpackets.?[1].value()) 1 else 0,
-            7 => return if (self.subpackets.?[0].value() == self.subpackets.?[1].value()) 1 else 0,
-        }
+    fn deinit(self: *Self, alloc: std.mem.Allocator) void {
+        self.contents.deinit(alloc);
     }
 };
 
