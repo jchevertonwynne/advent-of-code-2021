@@ -20,8 +20,9 @@ pub fn run(contents: []u8, out: anytype, allocator: std.mem.Allocator) !i128 {
 
 fn part1(numbers: []SnailNumber) usize {
     var number = numbers[0];
-    for (numbers[1..]) |n|
+    for (numbers[1..]) |n| {
         number = SnailNumber.add(number, n);
+    }
 
     return number.magnitude();
 }
@@ -30,8 +31,9 @@ fn part2(numbers: []SnailNumber) usize {
     var best: usize = 0;
     for (numbers) |a, aInd| {
         for (numbers) |b, bInd| {
-            if (aInd == bInd)
+            if (aInd == bInd) {
                 continue;
+            }
             best = std.math.max(best, SnailNumber.add(a, b).magnitude());
         }
     }
@@ -65,20 +67,24 @@ const SnailNumber = struct {
     }
 
     fn _magnitude(self: @This(), comptime i: usize, comptime depth: usize) usize {
-        if (depth > 4)
+        if (depth > 4) {
             unreachable;
+        }
         if (i != 0) {
-            if (self.contents[i - 1]) |val|
+            if (self.contents[i - 1]) |val| {
                 return val;
+            }
         }
         return 3 * self._magnitude(i * 2 + 1, depth + 1) + 2 * self._magnitude(i * 2 + 2, depth + 1);
     }
 
     fn fill(self: *@This(), comptime base: usize, comptime ind: usize, comptime depth: usize, other: SnailNumber) void {
-        if (depth > 4)
+        if (depth > 4) {
             return;
-        if (ind != 0)
+        }
+        if (ind != 0) {
             self.contents[base - 1] = other.contents[ind - 1];
+        }
         self.fill(base * 2 + 1, ind * 2 + 1, depth + 1, other);
         self.fill(base * 2 + 2, ind * 2 + 2, depth + 1, other);
     }
@@ -92,8 +98,9 @@ const SnailNumber = struct {
     }
 
     fn addValue(self: *@This(), comptime side: Side, comptime index: usize, value: u8) void {
-        if (index >= self.contents.len)
+        if (index >= self.contents.len) {
             unreachable;
+        }
         if (self.contents[index - 1]) |*val| {
             val.* += value;
         } else {
@@ -124,8 +131,9 @@ const SnailNumber = struct {
     fn normalise(self: *@This()) void {
         while (true) {
             while (self.explode().explosionDone) {}
-            if (!self.split())
+            if (!self.split()) {
                 break;
+            }
         }
     }
 
@@ -134,8 +142,9 @@ const SnailNumber = struct {
     }
 
     fn _explode(self: *@This(), comptime i: usize, comptime depth: usize) ExplodeResult {
-        if (depth > 4)
+        if (depth > 4) {
             unreachable;
+        }
         if (depth == 4 and self.contents[i - 1] == null) {
             var left = self.contents[i * 2 + 1 - 1];
             if (i % 2 == 0) { // righthand branch
@@ -189,8 +198,9 @@ const SnailNumber = struct {
                 result.right = right;
             }
         }
-        if (leftResult.explosionDone)
+        if (leftResult.explosionDone) {
             return result;
+        }
         var rightResult = self._explode(i * 2 + 2, depth + 1);
         result.explosionDone = result.explosionDone or rightResult.explosionDone;
         if (rightResult.source) {
@@ -219,8 +229,9 @@ const SnailNumber = struct {
     }
 
     fn _split(self: *@This(), comptime i: usize, comptime depth: usize) bool {
-        if (depth > 4)
+        if (depth > 4) {
             unreachable;
+        }
         if (i != 0) {
             if (self.contents[i - 1]) |value| {
                 if (value >= 10) {
@@ -239,7 +250,10 @@ const SnailNumber = struct {
     }
 };
 
-const Side = enum { left, right };
+const Side = enum {
+    left,
+    right,
+};
 
 const ExplodeResult = struct {
     left: ?u8,
@@ -255,8 +269,9 @@ fn loadNumbers(contents: []u8, allocator: std.mem.Allocator) ![]SnailNumber {
     var ind: usize = 0;
     while (ind < contents.len) {
         var start = ind;
-        while (contents[ind] != '\n')
+        while (contents[ind] != '\n') {
             ind += 1;
+        }
         try numbers.append(SnailNumber.parse(contents[start .. ind + 1]));
 
         ind += 1;
