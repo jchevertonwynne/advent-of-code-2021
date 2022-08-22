@@ -74,19 +74,19 @@ const SnailNumber = struct {
         return 3 * self._magnitude(i * 2 + 1, depth + 1) + 2 * self._magnitude(i * 2 + 2, depth + 1);
     }
 
-    fn fill(self: *@This(), comptime base: usize, comptime ind: usize, comptime depth: usize, other: SnailNumber) void {
+    fn _fill(self: *@This(), comptime base: usize, comptime ind: usize, comptime depth: usize, other: SnailNumber) void {
         if (depth > 4)
             return;
         if (ind != 0)
             self.contents[base - 1] = other.contents[ind - 1];
-        self.fill(base * 2 + 1, ind * 2 + 1, depth + 1, other);
-        self.fill(base * 2 + 2, ind * 2 + 2, depth + 1, other);
+        self._fill(base * 2 + 1, ind * 2 + 1, depth + 1, other);
+        self._fill(base * 2 + 2, ind * 2 + 2, depth + 1, other);
     }
 
     fn add(a: SnailNumber, b: SnailNumber) SnailNumber {
         var result = SnailNumber{ .contents = [_]?u8{null} ** 64 };
-        result.fill(1, 0, 0, a);
-        result.fill(2, 0, 0, b);
+        result._fill(1, 0, 0, a);
+        result._fill(2, 0, 0, b);
         result.normalise();
         return result;
     }
@@ -123,14 +123,14 @@ const SnailNumber = struct {
 
     fn normalise(self: *@This()) void {
         while (true) {
-            while (self.explode().explosionDone) {}
+            while (self.explode()) {}
             if (!self.split())
                 break;
         }
     }
 
-    fn explode(self: *@This()) ExplodeResult {
-        return self._explode(0, 0);
+    fn explode(self: *@This()) bool {
+        return self._explode(0, 0).explosionDone;
     }
 
     fn _explode(self: *@This(), comptime i: usize, comptime depth: usize) ExplodeResult {

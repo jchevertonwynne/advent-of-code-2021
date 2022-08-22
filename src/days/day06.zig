@@ -7,9 +7,9 @@ pub fn run(contents: []u8, out: anytype) !i128 {
 
     var fish = loadFish(contents);
 
-    var p1: usize = undefined;
-    var p2: usize = undefined;
-    solve(fish, &p1, &p2);
+    var results = solve(fish);
+    var p1 = results.p1;
+    var p2 = results.p2;
 
     var duration = std.time.nanoTimestamp() - start;
 
@@ -18,17 +18,19 @@ pub fn run(contents: []u8, out: anytype) !i128 {
     return duration;
 }
 
-fn solve(fish: [9]usize, p1: *usize, p2: *usize) void {
+fn solve(fish: [9]usize) struct { p1: usize, p2: usize } {
     const p1Mults = comptime createTable(80);
     const p2Mults = comptime createTable(256);
 
-    p1.* = 0;
+    var p1: usize = 0;
     inline for (p1Mults) |f1, i|
-        p1.* += f1 * fish[i];
+        p1 += f1 * fish[i];
 
-    p2.* = 0;
+    var p2: usize = 0;
     inline for (p2Mults) |f2, i|
-        p2.* += f2 * fish[i];
+        p2 += f2 * fish[i];
+
+    return .{ .p1 = p1, .p2 = p2 };
 }
 
 fn loadFish(contents: []u8) [9]usize {

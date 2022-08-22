@@ -111,10 +111,7 @@ const Wins = struct {
     }
 
     fn most(wins: Wins) usize {
-        return if (wins.player1 > wins.player2)
-            wins.player1
-        else
-            wins.player2;
+        return std.math.max(wins.player1, wins.player2);
     }
 };
 

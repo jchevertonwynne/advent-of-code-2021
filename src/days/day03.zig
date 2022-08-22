@@ -70,7 +70,7 @@ fn calculateChemical(comptime chemical: Chemical, newline: usize, table: []usize
                 if (left + right == 1) {
                     break :block 1 - left;
                 }
-                break :block @boolToInt(right < left);
+                break :block @boolToInt(left > right);
             },
         };
 
