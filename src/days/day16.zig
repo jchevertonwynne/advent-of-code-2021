@@ -28,8 +28,8 @@ const SolveResult = struct {
 };
 
 fn solve(reader: *BitReader) RunError!SolveResult {
-    var packetVersion = @truncate(u3, try reader.int(3));
-    var packetType = @truncate(u3, try reader.int(3));
+    var packetVersion = try reader.int(u3, 3);
+    var packetType = try reader.int(u3, 3);
     var packetSum: usize = packetVersion;
 
     var value: usize = switch (packetType) {
@@ -53,7 +53,7 @@ fn solveN(reader: *BitReader, comptime f: fn (usize, usize) usize, start: usize,
     var value = start;
     var lengthTypeID = try reader.single();
     if (lengthTypeID == 0) {
-        var totalLength = try reader.int(15);
+        var totalLength = try reader.int(u15, 15);
         var startRead = reader.totalRead;
         while (reader.totalRead - startRead != totalLength) {
             var subparse = try solve(reader);
@@ -61,7 +61,7 @@ fn solveN(reader: *BitReader, comptime f: fn (usize, usize) usize, start: usize,
             packetSum.* += subparse.packetSum;
         }
     } else {
-        var totalFollowing = try reader.int(11);
+        var totalFollowing = try reader.int(u11, 11);
         var i: usize = 0;
         while (i < totalFollowing) : (i += 1) {
             var subparse = try solve(reader);
@@ -93,7 +93,7 @@ fn literal(reader: *BitReader) !usize {
     var lit: usize = 0;
     while (true) {
         var shouldBreak = try reader.single() == 0;
-        lit = (lit << 4) + try reader.int(4);
+        lit = (lit << 4) + try reader.int(u4, 4);
         if (shouldBreak) {
             break;
         }
@@ -164,7 +164,7 @@ const BitReader = struct {
     }
 
     fn skip(self: *Self, toSkip: usize) RunError!void {
-        _ = try self.int(toSkip);
+        _ = try self.int(usize, toSkip);
     }
 
     fn _readyNext(self: *Self) !void {
@@ -173,10 +173,10 @@ const BitReader = struct {
         self.left = 4;
     }
 
-    fn int(self: *Self, bits: usize) RunError!usize {
+    fn int(self: *Self, comptime T: type, bits: usize) RunError!T {
         try self._ensureReady();
         var _bits = bits;
-        var result: usize = 0;
+        var result: T = 0;
         while (_bits != 0) : (_bits -= 1) {
             result = (result << 1) + try self.single();
         }
