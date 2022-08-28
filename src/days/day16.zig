@@ -5,9 +5,8 @@ const util = @import("../util.zig");
 pub fn run(contents: []u8, out: anytype) !i128 {
     var start = std.time.nanoTimestamp();
 
-    var reader = BitReader.new(contents);
-
-    var parsed = solve(&reader);
+    var reader = try BitReader.new(contents);
+    var parsed = try solve(&reader);
 
     var p1: usize = parsed.packetSum;
     var p2: usize = parsed.value;
@@ -19,110 +18,53 @@ pub fn run(contents: []u8, out: anytype) !i128 {
     return duration;
 }
 
-const BitReader = struct {
-    const Self = @This();
-    
-    source: []u8,
-    sourceInd: usize,
-    current: u8,
-    left: u3,
-    totalRead: usize,
-
-    fn new(source: []u8) Self {
-        return .{
-            .source = source,
-            .sourceInd = 0,
-            .current = undefined,
-            .left = 0,
-            .totalRead = 0,
-        };
-    }
-
-    fn single(self: *Self) u1 {
-        defer {
-            self.left -= 1;
-            self.current <<= 1;
-            self.totalRead += 1;
-        }
-        if (self.left == 0) {
-            var b = self.source[self.sourceInd];
-            if ('0' <= b and b <= '9') {
-                b -= '0';
-            } else if ('A' <= b and b <= 'F') {
-                b = 10 + b - '0';
-            }
-            self.current = b;
-            self.sourceInd += 1;
-        }
-        return @boolToInt(self.current & 0b10000 != 0);
-    }
-
-    fn arr(self: *Self, comptime size: usize) [size]u1 {
-        var result: [size]u1 = undefined;
-        for (result) |*r| {
-            r.* = self.single();
-        }
-        return result;
-    }
-
-    fn int(self: *Self, comptime T: type, bits: usize) T {
-        var _bits = bits;
-        var result: T = 0;
-        if (self.left < _bits) {
-            self.totalRead += self.left;
-            var shift = @as(u8, 4) - self.left;
-            while (true) : (shift -= @truncate(u3, 1)) {
-                if (shift == 0)
-                    break;
-                self.current >>= 1;
-            }
-            result = @as(T, self.current);
-            _bits -= self.left;
-        }
-        while (_bits >= 4) : (_bits -= 4) {
-            self.totalRead += 4;
-            result <<= 4;
-            var b = self.source[self.sourceInd];
-            if ('0' <= b and b <= '9') {
-                b -= '0';
-            } else if ('A' <= b and b <= 'F') {
-                b = 10 + b - '0';
-            }
-            result += @truncate(u4, b);
-            self.sourceInd += 1;
-        }
-        var b = self.source[self.sourceInd];
-        if ('0' <= b and b <= '9') {
-            b -= '0';
-        } else if ('A' <= b and b <= 'F') {
-            b = 10 + b - '0';
-        }
-        self.current = b;
-        self.left = 4;
-        while (_bits != 0) : (_bits -= 1) {
-            result <<= 1;
-            result += self.single();
-        }
-        return result;
-    }
+const RunError = error{
+    InvalidInput,
 };
 
-fn _solve(reader: *BitReader, comptime f: fn(usize, usize) usize, start: usize, packetSum: *usize) usize {
+const SolveResult = struct {
+    value: usize,
+    packetSum: usize,
+};
+
+fn solve(reader: *BitReader) RunError!SolveResult {
+    var packetVersion = @truncate(u3, try reader.int(3));
+    var packetType = @truncate(u3, try reader.int(3));
+    var packetSum: usize = packetVersion;
+
+    var value: usize = switch (packetType) {
+        0 => try solveN(reader, add, 0, &packetSum),
+        1 => try solveN(reader, prod, 1, &packetSum),
+        2 => try solveN(reader, min, std.math.maxInt(usize), &packetSum),
+        3 => try solveN(reader, max, 0, &packetSum),
+        4 => try literal(reader),
+        5 => try solve2(reader, gt, &packetSum),
+        6 => try solve2(reader, lt, &packetSum),
+        7 => try solve2(reader, eq, &packetSum),
+    };
+
+    return SolveResult{
+        .value = value,
+        .packetSum = packetSum,
+    };
+}
+
+fn solveN(reader: *BitReader, comptime f: fn (usize, usize) usize, start: usize, packetSum: *usize) RunError!usize {
     var value = start;
-    var lengthTypeID = reader.single();
+    var lengthTypeID = try reader.single();
     if (lengthTypeID == 0) {
-        var totalLength = reader.int(u16, 15);
+        var totalLength = try reader.int(15);
         var startRead = reader.totalRead;
         while (reader.totalRead - startRead != totalLength) {
-            var subparse = solve(reader);
+            var subparse = try solve(reader);
             value = f(value, subparse.value);
             packetSum.* += subparse.packetSum;
         }
     } else {
-        var totalFollowing = reader.int(u16, 11);
+        var totalFollowing = try reader.int(11);
         var i: usize = 0;
         while (i < totalFollowing) : (i += 1) {
-            var subparse = solve(reader);
+            var subparse = try solve(reader);
             value = f(value, subparse.value);
             packetSum.* += subparse.packetSum;
         }
@@ -131,91 +73,33 @@ fn _solve(reader: *BitReader, comptime f: fn(usize, usize) usize, start: usize, 
     return value;
 }
 
-fn solve(reader: *BitReader) struct{ value: usize, packetSum: usize } {
-    var packetVersion = reader.int(u3, 3);
-    var packetType = reader.int(u3, 3);
-    if (packetType == 4) {
-        var literal: usize = 0;
-        while (true) {
-            var shouldBreak = reader.single() == 0;
-            for (reader.arr(4)) |b| {
-                literal <<= 1;
-                literal += b;
-            }            
-            if (shouldBreak) {
-                break;
-            }
-        }
-        return .{
-            .value = literal,
-            .packetSum = packetVersion,
-        };
+fn solve2(reader: *BitReader, comptime f: fn (usize, usize) usize, packetSum: *usize) RunError!usize {
+    var lengthTypeID = try reader.single();
+    if (lengthTypeID == 0) {
+        try reader.skip(15);
+    } else {
+        try reader.skip(11);
     }
 
-    var op = @intToEnum(Operator, packetType);
-    var packetSum: usize = packetVersion;
+    var a = try solve(reader);
+    var b = try solve(reader);
 
-    var value: usize = switch (op) {
-        .sum => _solve(reader, add, 0, &packetSum),
-        .product => _solve(reader, prod, 1, &packetSum),
-        .minimum => _solve(reader, min, comptime std.math.maxInt(usize), &packetSum),
-        .maximum => _solve(reader, max, 0, &packetSum),
-        .gt => block: {
-            var lengthTypeID = reader.single();
-            if (lengthTypeID == 0) {
-                _ = reader.int(u16, 15);
-            } else {
-                _ = reader.int(u16, 11);
-            }
-            var a = solve(reader);
-            packetSum += a.packetSum;
-            var b = solve(reader);
-            packetSum += b.packetSum;
-            break :block @boolToInt(a.value > b.value);
-        },
-        .lt => block: {
-            var lengthTypeID = reader.single();
-            if (lengthTypeID == 0) {
-                _ = reader.int(u16, 15);
-            } else {
-                _ = reader.int(u16, 11);
-            }
-            var a = solve(reader);
-            packetSum += a.packetSum;
-            var b = solve(reader);
-            packetSum += b.packetSum;
-            break :block @boolToInt(a.value < b.value);
-        },
-        .eq => block: {
-            var lengthTypeID = reader.single();
-            if (lengthTypeID == 0) {
-                _ = reader.int(u16, 15);
-            } else {
-                _ = reader.int(u16, 11);
-            }
-            var a = solve(reader);
-            packetSum += a.packetSum;
-            var b = solve(reader);
-            packetSum += b.packetSum;
-            break :block @boolToInt(a.value == b.value);
-        },
-    };
+    packetSum.* += a.packetSum + b.packetSum;
 
-    return .{
-        .value = value,
-        .packetSum = packetSum,
-    };
+    return f(a.value, b.value);
 }
 
-const Operator = enum(u3) {
-    sum = 0,
-    product = 1,
-    minimum = 2,
-    maximum = 3,
-    gt = 5,
-    lt = 6,
-    eq = 7,
-};
+fn literal(reader: *BitReader) !usize {
+    var lit: usize = 0;
+    while (true) {
+        var shouldBreak = try reader.single() == 0;
+        lit = (lit << 4) + try reader.int(4);
+        if (shouldBreak) {
+            break;
+        }
+    }
+    return lit;
+}
 
 fn add(a: usize, b: usize) usize {
     return a + b;
@@ -231,4 +115,79 @@ fn min(a: usize, b: usize) usize {
 
 fn max(a: usize, b: usize) usize {
     return std.math.max(a, b);
+}
+
+fn lt(a: usize, b: usize) usize {
+    return @boolToInt(a < b);
+}
+
+fn gt(a: usize, b: usize) usize {
+    return @boolToInt(a > b);
+}
+
+fn eq(a: usize, b: usize) usize {
+    return @boolToInt(a == b);
+}
+
+const BitReader = struct {
+    const Self = @This();
+
+    source: []u8,
+    sourceInd: usize,
+    current: u8,
+    left: u3,
+    totalRead: usize,
+
+    fn new(source: []u8) !Self {
+        return Self{
+            .source = source,
+            .sourceInd = 0,
+            .current = undefined,
+            .left = 0,
+            .totalRead = 0,
+        };
+    }
+
+    fn _ensureReady(self: *Self) RunError!void {
+        if (self.left == 0) {
+            try self._readyNext();
+        }
+    }
+
+    fn single(self: *Self) RunError!u1 {
+        try self._ensureReady();
+        self.current <<= 1;
+        var result = @boolToInt(self.current & 0b10000 != 0);
+        self.left -= 1;
+        self.totalRead += 1;
+        return result;
+    }
+
+    fn skip(self: *Self, toSkip: usize) RunError!void {
+        _ = try self.int(toSkip);
+    }
+
+    fn _readyNext(self: *Self) !void {
+        self.current = try convertHex(self.source[self.sourceInd]);
+        self.sourceInd += 1;
+        self.left = 4;
+    }
+
+    fn int(self: *Self, bits: usize) RunError!usize {
+        try self._ensureReady();
+        var _bits = bits;
+        var result: usize = 0;
+        while (_bits != 0) : (_bits -= 1) {
+            result = (result << 1) + try self.single();
+        }
+        return result;
+    }
+};
+
+fn convertHex(val: u8) RunError!u8 {
+    return switch (val) {
+        '0'...'9' => |b| b - '0',
+        'A'...'F' => |b| 10 + b - 'A',
+        else => return error.InvalidInput,
+    };
 }
