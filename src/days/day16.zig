@@ -5,8 +5,8 @@ const util = @import("../util.zig");
 pub fn run(contents: []u8, out: anytype) !i128 {
     var start = std.time.nanoTimestamp();
 
-    var reader = try BitReader.new(contents);
-    var parsed = try solve(&reader);
+    var reader = BitReader.new(contents);
+    var parsed = solve(&reader);
 
     var p1: usize = parsed.packetSum;
     var p2: usize = parsed.value;
@@ -18,29 +18,25 @@ pub fn run(contents: []u8, out: anytype) !i128 {
     return duration;
 }
 
-const RunError = error{
-    InvalidInput,
-};
-
 const SolveResult = struct {
     value: usize,
     packetSum: usize,
 };
 
-fn solve(reader: *BitReader) RunError!SolveResult {
-    var packetVersion = try reader.int(u3, 3);
-    var packetType = try reader.int(u3, 3);
+fn solve(reader: *BitReader) SolveResult {
+    var packetVersion = reader.int(u3, 3);
+    var packetType = reader.int(u3, 3);
     var packetSum: usize = packetVersion;
 
     var value: usize = switch (packetType) {
-        0 => try solveN(reader, add, 0, &packetSum),
-        1 => try solveN(reader, prod, 1, &packetSum),
-        2 => try solveN(reader, min, std.math.maxInt(usize), &packetSum),
-        3 => try solveN(reader, max, 0, &packetSum),
-        4 => try literal(reader),
-        5 => try solve2(reader, gt, &packetSum),
-        6 => try solve2(reader, lt, &packetSum),
-        7 => try solve2(reader, eq, &packetSum),
+        0 => solveN(reader, add, 0, &packetSum),
+        1 => solveN(reader, prod, 1, &packetSum),
+        2 => solveN(reader, min, std.math.maxInt(usize), &packetSum),
+        3 => solveN(reader, max, 0, &packetSum),
+        4 => literal(reader),
+        5 => solve2(reader, gt, &packetSum),
+        6 => solve2(reader, lt, &packetSum),
+        7 => solve2(reader, eq, &packetSum),
     };
 
     return SolveResult{
@@ -49,22 +45,22 @@ fn solve(reader: *BitReader) RunError!SolveResult {
     };
 }
 
-fn solveN(reader: *BitReader, comptime f: fn (usize, usize) usize, start: usize, packetSum: *usize) RunError!usize {
+fn solveN(reader: *BitReader, comptime f: fn (usize, usize) usize, start: usize, packetSum: *usize) usize {
     var value = start;
-    var lengthTypeID = try reader.single();
+    var lengthTypeID = reader.single();
     if (lengthTypeID == 0) {
-        var totalLength = try reader.int(u15, 15);
+        var totalLength = reader.int(u15, 15);
         var startRead = reader.totalRead;
         while (reader.totalRead - startRead != totalLength) {
-            var subparse = try solve(reader);
+            var subparse = solve(reader);
             value = f(value, subparse.value);
             packetSum.* += subparse.packetSum;
         }
     } else {
-        var totalFollowing = try reader.int(u11, 11);
+        var totalFollowing = reader.int(u11, 11);
         var i: usize = 0;
         while (i < totalFollowing) : (i += 1) {
-            var subparse = try solve(reader);
+            var subparse = solve(reader);
             value = f(value, subparse.value);
             packetSum.* += subparse.packetSum;
         }
@@ -73,27 +69,27 @@ fn solveN(reader: *BitReader, comptime f: fn (usize, usize) usize, start: usize,
     return value;
 }
 
-fn solve2(reader: *BitReader, comptime f: fn (usize, usize) usize, packetSum: *usize) RunError!usize {
-    var lengthTypeID = try reader.single();
+fn solve2(reader: *BitReader, comptime f: fn (usize, usize) usize, packetSum: *usize) usize {
+    var lengthTypeID = reader.single();
     if (lengthTypeID == 0) {
-        try reader.skip(15);
+        reader.skip(15);
     } else {
-        try reader.skip(11);
+        reader.skip(11);
     }
 
-    var a = try solve(reader);
-    var b = try solve(reader);
+    var a = solve(reader);
+    var b = solve(reader);
 
     packetSum.* += a.packetSum + b.packetSum;
 
     return f(a.value, b.value);
 }
 
-fn literal(reader: *BitReader) !usize {
+fn literal(reader: *BitReader) usize {
     var lit: usize = 0;
     while (true) {
-        var shouldBreak = try reader.single() == 0;
-        lit = (lit << 4) + try reader.int(u4, 4);
+        var shouldBreak = reader.single() == 0;
+        lit = (lit << 4) + reader.int(u4, 4);
         if (shouldBreak) {
             break;
         }
@@ -138,7 +134,7 @@ const BitReader = struct {
     left: u3,
     totalRead: usize,
 
-    fn new(source: []u8) !Self {
+    fn new(source: []u8) Self {
         return Self{
             .source = source,
             .sourceInd = 0,
@@ -148,14 +144,14 @@ const BitReader = struct {
         };
     }
 
-    fn _ensureReady(self: *Self) RunError!void {
+    fn _ensureReady(self: *Self) void {
         if (self.left == 0) {
-            try self._readyNext();
+            self._readyNext();
         }
     }
 
-    fn single(self: *Self) RunError!u1 {
-        try self._ensureReady();
+    fn single(self: *Self) u1 {
+        self._ensureReady();
         self.current <<= 1;
         var result = @boolToInt(self.current & 0b10000 != 0);
         self.left -= 1;
@@ -163,31 +159,44 @@ const BitReader = struct {
         return result;
     }
 
-    fn skip(self: *Self, toSkip: usize) RunError!void {
-        _ = try self.int(usize, toSkip);
+    fn skip(self: *Self, toSkip: usize) void {
+        _ = self.int(usize, toSkip);
     }
 
-    fn _readyNext(self: *Self) !void {
-        self.current = try convertHex(self.source[self.sourceInd]);
+    fn _readyNext(self: *Self) void {
+        self.current = convertHex(self.source[self.sourceInd]);
         self.sourceInd += 1;
         self.left = 4;
     }
 
-    fn int(self: *Self, comptime T: type, bits: usize) RunError!T {
-        try self._ensureReady();
+    fn int(self: *Self, comptime T: type, bits: usize) T {
+        self._ensureReady();
         var _bits = bits;
         var result: T = 0;
         while (_bits != 0) : (_bits -= 1) {
-            result = (result << 1) + try self.single();
+            result = (result << 1) + self.single();
         }
         return result;
     }
 };
 
-fn convertHex(val: u8) RunError!u8 {
-    return switch (val) {
-        '0'...'9' => |b| b - '0',
-        'A'...'F' => |b| 10 + b - 'A',
-        else => return error.InvalidInput,
+fn convertHex(val: u8) u8 {
+    const lookup = comptime blk: {
+        var table: [std.math.maxInt(u8)]u8 = undefined;
+        var i = '0';
+        var value: u8 = 0;
+        while (i <= '9') {
+            table[i] = value;
+            i += 1;
+            value += 1;
+        }
+        i = 'A';
+        while (i <= 'F') {
+            table[i] = value;
+            i += 1;
+            value += 1;
+        }
+        break :blk table;
     };
+    return lookup[val];
 }
