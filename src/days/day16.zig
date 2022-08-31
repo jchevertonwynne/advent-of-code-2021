@@ -24,8 +24,8 @@ const SolveResult = struct {
 };
 
 fn solve(reader: *BitReader) SolveResult {
-    var packetVersion = reader.int(u3, 3);
-    var packetType = reader.int(u3, 3);
+    var packetVersion = reader.int(u3);
+    var packetType = reader.int(u3);
     var packetSum: usize = packetVersion;
 
     var value: usize = switch (packetType) {
@@ -49,7 +49,7 @@ fn solveN(reader: *BitReader, comptime f: fn (usize, usize) usize, start: usize,
     var value = start;
     var lengthTypeID = reader.single();
     if (lengthTypeID == 0) {
-        var totalLength = reader.int(u15, 15);
+        var totalLength = reader.int(u15);
         var startRead = reader.totalRead;
         while (reader.totalRead - startRead != totalLength) {
             var subparse = solve(reader);
@@ -57,7 +57,7 @@ fn solveN(reader: *BitReader, comptime f: fn (usize, usize) usize, start: usize,
             packetSum.* += subparse.packetSum;
         }
     } else {
-        var totalFollowing = reader.int(u11, 11);
+        var totalFollowing = reader.int(u11);
         var i: usize = 0;
         while (i < totalFollowing) : (i += 1) {
             var subparse = solve(reader);
@@ -71,11 +71,7 @@ fn solveN(reader: *BitReader, comptime f: fn (usize, usize) usize, start: usize,
 
 fn solve2(reader: *BitReader, comptime f: fn (usize, usize) usize, packetSum: *usize) usize {
     var lengthTypeID = reader.single();
-    if (lengthTypeID == 0) {
-        reader.skip(15);
-    } else {
-        reader.skip(11);
-    }
+    reader.skip(11 | (@as(usize, @boolToInt(lengthTypeID == 0)) << 2));
 
     var a = solve(reader);
     var b = solve(reader);
@@ -89,12 +85,91 @@ fn literal(reader: *BitReader) usize {
     var lit: usize = 0;
     while (true) {
         var shouldBreak = reader.single() == 0;
-        lit = (lit << 4) + reader.int(u4, 4);
+        lit = (lit << 4) + reader.int(u4);
         if (shouldBreak) {
             break;
         }
     }
     return lit;
+}
+
+const BitReader = struct {
+    const Self = @This();
+
+    source: []u8,
+    sourceInd: usize,
+    current: u8,
+    left: u3,
+    totalRead: usize,
+
+    fn new(source: []u8) Self {
+        return Self{
+            .source = source,
+            .sourceInd = 0,
+            .current = undefined,
+            .left = 0,
+            .totalRead = 0,
+        };
+    }
+
+    fn _ensureReady(self: *Self) void {
+        if (self.left == 0) {
+            self.current = convertHex(self.source[self.sourceInd]);
+            self.sourceInd += 1;
+            self.left = 4;
+        }
+    }
+
+    fn single(self: *Self) u1 {
+        self._ensureReady();
+        self.current <<= 1;
+        var result = @boolToInt(self.current & 0b10000 != 0);
+        self.left -= 1;
+        self.totalRead += 1;
+        return result;
+    }
+
+    fn skip(self: *Self, toSkip: usize) void {
+        var _toSkip = toSkip;
+        while (_toSkip != 0) : (_toSkip -= 1) {
+            _ = self.single();
+        }
+    }
+
+    fn int(self: *Self, comptime T: type) T {
+        comptime var _bits = blk: {
+            const t = @typeInfo(T);
+            std.debug.assert(t == .Int);
+            std.debug.assert(t.Int.signedness == .unsigned);
+            break :blk t.Int.bits;
+        };
+        var result: T = 0;
+        inline while (_bits != 0) : (_bits -= 1) {
+            result = (result << 1) + self.single();
+        }
+        return result;
+    }
+};
+
+fn convertHex(val: u8) u8 {
+    const lookup = comptime blk: {
+        var table: ['F' - '0' + 1]u8 = undefined;
+        var i = '0';
+        var value: u8 = 0;
+        while (i <= '9') {
+            table[i - '0'] = value;
+            i += 1;
+            value += 1;
+        }
+        i = 'A';
+        while (i <= 'F') {
+            table[i - '0'] = value;
+            i += 1;
+            value += 1;
+        }
+        break :blk table;
+    };
+    return lookup[val - '0'];
 }
 
 fn add(a: usize, b: usize) usize {
@@ -123,80 +198,4 @@ fn gt(a: usize, b: usize) usize {
 
 fn eq(a: usize, b: usize) usize {
     return @boolToInt(a == b);
-}
-
-const BitReader = struct {
-    const Self = @This();
-
-    source: []u8,
-    sourceInd: usize,
-    current: u8,
-    left: u3,
-    totalRead: usize,
-
-    fn new(source: []u8) Self {
-        return Self{
-            .source = source,
-            .sourceInd = 0,
-            .current = undefined,
-            .left = 0,
-            .totalRead = 0,
-        };
-    }
-
-    fn _ensureReady(self: *Self) void {
-        if (self.left == 0) {
-            self._readyNext();
-        }
-    }
-
-    fn single(self: *Self) u1 {
-        self._ensureReady();
-        self.current <<= 1;
-        var result = @boolToInt(self.current & 0b10000 != 0);
-        self.left -= 1;
-        self.totalRead += 1;
-        return result;
-    }
-
-    fn skip(self: *Self, toSkip: usize) void {
-        _ = self.int(usize, toSkip);
-    }
-
-    fn _readyNext(self: *Self) void {
-        self.current = convertHex(self.source[self.sourceInd]);
-        self.sourceInd += 1;
-        self.left = 4;
-    }
-
-    fn int(self: *Self, comptime T: type, bits: usize) T {
-        self._ensureReady();
-        var _bits = bits;
-        var result: T = 0;
-        while (_bits != 0) : (_bits -= 1) {
-            result = (result << 1) + self.single();
-        }
-        return result;
-    }
-};
-
-fn convertHex(val: u8) u8 {
-    const lookup = comptime blk: {
-        var table: [std.math.maxInt(u8)]u8 = undefined;
-        var i = '0';
-        var value: u8 = 0;
-        while (i <= '9') {
-            table[i] = value;
-            i += 1;
-            value += 1;
-        }
-        i = 'A';
-        while (i <= 'F') {
-            table[i] = value;
-            i += 1;
-            value += 1;
-        }
-        break :blk table;
-    };
-    return lookup[val];
 }
