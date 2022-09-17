@@ -59,7 +59,7 @@ fn calculateChemical(comptime chemical: Chemical, newline: usize, table: []usize
     while (bits < newline) : (bits += 1) {
         var left = table[ind - 1];
         var right = table[ind];
-        var res = switch (chemical) {
+        var res: usize = switch (chemical) {
             .oxygen => block: {
                 if (left + right == 1) {
                     break :block 1 - left;

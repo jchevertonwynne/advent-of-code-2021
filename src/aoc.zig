@@ -20,7 +20,7 @@ pub fn main() !void {
 
     var duration: i128 = 0;
 
-    // duration += try @import("./days/day01.zig").run(contents.day01, &writer);
+    duration += try @import("./days/day01.zig").run(contents.day01, &writer);
     // duration += try @import("./days/day02.zig").run(contents.day02, &writer);
     // duration += try @import("./days/day03.zig").run(contents.day03, &writer, allocator);
     // duration += try @import("./days/day04.zig").run(contents.day04, &writer, allocator);
@@ -29,13 +29,13 @@ pub fn main() !void {
     // duration += try @import("./days/day07.zig").run(contents.day07, &writer, allocator);
     // duration += try @import("./days/day08.zig").run(contents.day08, &writer, allocator);
     // duration += try @import("./days/day09.zig").run(contents.day09, &writer);
-    // duration += try @import("./days/day10.zig").run(contents.day10, &writer);
+    // duration += try @import("./days/day10.zig").run(contents.day10, &writer, allocator);
     // duration += try @import("./days/day11.zig").run(contents.day11, &writer);
     // duration += try @import("./days/day12.zig").run(contents.day12, &writer, allocator);
     // duration += try @import("./days/day13.zig").run(contents.day13, &writer, allocator);
     // duration += try @import("./days/day14.zig").run(contents.day14, &writer, allocator);
     // duration += try @import("./days/day15.zig").run(contents.day15, &writer, allocator);
-    duration += try @import("./days/day16.zig").run(contents.day16, &writer);
+    // duration += try @import("./days/day16.zig").run(contents.day16, &writer);
     // duration += try @import("./days/day17.zig").run(contents.day17, &writer);
     // duration += try @import("./days/day18.zig").run(contents.day18, &writer, allocator);
     // duration += try @import("./days/day19.zig").run(contents.day19, &writer, allocator);

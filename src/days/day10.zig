@@ -2,12 +2,12 @@ const std = @import("std");
 
 const util = @import("../util.zig");
 
-pub fn run(contents: []u8, out: anytype) !i128 {
+pub fn run(contents: []u8, out: anytype, alloc: std.mem.Allocator) !i128 {
     var start = std.time.nanoTimestamp();
 
     var p1: usize = undefined;
     var p2: usize = undefined;
-    try solve(contents, &p1, &p2);
+    try solve(contents, &p1, &p2, alloc);
 
     var duration = std.time.nanoTimestamp() - start;
 
@@ -16,9 +16,9 @@ pub fn run(contents: []u8, out: anytype) !i128 {
     return duration;
 }
 
-fn solve(contents: []u8, p1: *usize, p2: *usize) !void {
-    var scores = @bitCast([]usize, contents);
-    var scoreCount: usize = 0;
+fn solve(contents: []u8, p1: *usize, p2: *usize, alloc: std.mem.Allocator) !void {
+    var scores = std.ArrayList(usize).init(alloc);
+    defer scores.deinit();
 
     p1.* = 0;
 
@@ -80,12 +80,11 @@ fn solve(contents: []u8, p1: *usize, p2: *usize) !void {
                     else => unreachable,
                 });
             }
-            scores[scoreCount] = score;
-            scoreCount += 1;
+            try scores.append(score);
         }
     }
 
-    std.sort.sort(usize, scores[0..scoreCount], {}, comptime std.sort.asc(usize));
+    std.sort.sort(usize, scores.items, {}, comptime std.sort.asc(usize));
 
-    p2.* = scores[scoreCount / 2];
+    p2.* = scores.items[scores.items.len / 2];
 }

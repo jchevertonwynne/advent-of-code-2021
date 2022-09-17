@@ -5,9 +5,9 @@ const util = @import("../util.zig");
 pub fn run(contents: []u8, out: anytype) !i128 {
     var start = std.time.nanoTimestamp();
 
-    var p1: usize = 0;
-    var p2: usize = 0;
-    try solve(contents, &p1, &p2);
+    var answer = solve(contents);
+    var p1 = answer.p1;
+    var p2 = answer.p2;
 
     var duration = std.time.nanoTimestamp() - start;
 
@@ -16,18 +16,18 @@ pub fn run(contents: []u8, out: anytype) !i128 {
     return duration;
 }
 
-fn solve(contents: []u8, p1: *usize, p2: *usize) !void {
-    var parsed: [4]usize = undefined;
+fn solve(contents: []u8) struct{ p1: usize, p2: usize } {
+    var p1: usize = 0;
+    var p2: usize = 0;
+    var parsed: [4]usize = [_]usize{std.math.maxInt(usize)} ** 4;
     var ind: usize = 0;
-    var n: usize = 0;
-    while (ind < contents.len) : (n += 1) {
-        var size: usize = undefined;
-        util.toUnsignedInt(usize, contents[ind..], &parsed[n % parsed.len], &size);
-        if (n >= 1 and parsed[n % parsed.len] > parsed[(n - 1) % parsed.len])
-            p1.* += 1;
-        if (n >= 3 and parsed[n % parsed.len] > parsed[(n - 3) % parsed.len])
-            p2.* += 1;
-
-        ind += size + 1;
+    var n: u2 = 0;
+    while (ind < contents.len) : (n +%= 1) {
+        var parse = util.toUnsignedInt(usize, contents[ind..]);
+        parsed[n] = parse.result;
+        p1 += @boolToInt(parsed[n] > parsed[n -% 1]);
+        p2 += @boolToInt(parsed[n] > parsed[n -% 3]);
+        ind += parse.size + 1;
     }
+    return .{ .p1 = p1, .p2 = p2 };
 }
