@@ -20,10 +20,10 @@ pub fn main() !void {
 
     var duration: i128 = 0;
 
-    duration += try @import("./days/day01.zig").run(contents.day01, &writer);
+    // duration += try @import("./days/day01.zig").run(contents.day01, &writer);
     // duration += try @import("./days/day02.zig").run(contents.day02, &writer);
     // duration += try @import("./days/day03.zig").run(contents.day03, &writer, allocator);
-    // duration += try @import("./days/day04.zig").run(contents.day04, &writer, allocator);
+    duration += try @import("./days/day04.zig").run(contents.day04, &writer, allocator);
     // duration += try @import("./days/day05.zig").run(contents.day05, &writer, allocator);
     // duration += try @import("./days/day06.zig").run(contents.day06, &writer);
     // duration += try @import("./days/day07.zig").run(contents.day07, &writer, allocator);

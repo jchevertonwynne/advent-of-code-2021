@@ -50,7 +50,10 @@ pub fn run(contents: []u8, out: anytype, allocator: std.mem.Allocator) !i128 {
     return duration;
 }
 
-const Chemical = enum { oxygen, co2 };
+const Chemical = enum {
+    oxygen,
+    co2,
+};
 
 fn calculateChemical(comptime chemical: Chemical, newline: usize, table: []usize) usize {
     var bits: usize = 0;

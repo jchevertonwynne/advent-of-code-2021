@@ -42,42 +42,45 @@ fn part1(state: State) usize {
 }
 
 fn part2(state: State) usize {
+    var ind: usize = undefined;
+    var boards = state.boards;
+
     for (state.called) |called, i| {
-        var winnerInd: usize = 0;
-        var remaining: usize = 0;
-        for (state.boards) |*b, boardInd| {
-            if (b.wonGame) {
-                continue;
-            }
-            b.mark(called);
-            if (!b.won()) {
-                remaining += 1;
-                winnerInd = boardInd;
+        ind = i;
+        var boardsInd: usize = 0;
+
+        while (boardsInd < boards.len) {
+            boards[boardsInd].mark(called);
+            if (boards[boardsInd].won()) {
+                boards[boardsInd] = boards[boards.len - 1];
+                boards = boards[0 .. boards.len - 1];
+            } else {
+                boardsInd += 1;
             }
         }
-
-        if (remaining == 1) {
-            var ind = i;
-            var lastBoard = state.boards[winnerInd];
-
-            while (!lastBoard.won()) : (ind += 1)
-                lastBoard.mark(state.called[ind]);
-
-            var result: usize = 0;
-
-            for (lastBoard.board[0..5]) |row| {
-                var shift: u7 = 0;
-                while (shift < 100) : (shift += 1) {
-                    if (row & (@as(u100, 1) << shift) != 0)
-                        result += shift;
-                }
-            }
-
-            return result * state.called[ind - 1];
+        if (boards.len == 1) {
+            break;
         }
     }
 
-    unreachable;
+    var lastBoard = boards[0];
+
+    while (!lastBoard.won()) : (ind += 1) {
+        lastBoard.mark(state.called[ind]);
+    }
+
+    var result: usize = 0;
+
+    for (lastBoard.board[0..5]) |row| {
+        var shift: u7 = 0;
+        while (shift < 100) : (shift += 1) {
+            if (row & (@as(u100, 1) << shift) != 0) {
+                result += shift;
+            }
+        }
+    }
+
+    return result * state.called[ind - 1];
 }
 
 const State = struct {
@@ -112,7 +115,7 @@ const State = struct {
         ind += 1;
 
         while (ind < contents.len) {
-            var board: Board = .{ .board = std.mem.zeroes([10]u100), .wonGame = false };
+            var board: Board = .{ .board = std.mem.zeroes([10]u100) };
             var row: usize = 0;
             var temp: [5][5]u7 = std.mem.zeroes([5][5]u7);
             while (row < 5) : (row += 1) {
@@ -155,7 +158,6 @@ const Board = struct {
     const Self = @This();
 
     board: [10]u100,
-    wonGame: bool,
 
     fn mark(self: *Self, val: u7) void {
         var mask = ~(@as(u100, 1) << val);
@@ -166,7 +168,6 @@ const Board = struct {
     fn won(self: *Self) bool {
         for (self.board) |b| {
             if (b == 0) {
-                self.wonGame = true;
                 return true;
             }
         }

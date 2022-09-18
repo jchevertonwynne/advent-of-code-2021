@@ -16,7 +16,7 @@ pub fn run(contents: []u8, out: anytype) !i128 {
     return duration;
 }
 
-fn solve(contents: []u8) struct{ p1: usize, p2: usize } {
+fn solve(contents: []u8) struct { p1: usize, p2: usize } {
     var p1: usize = 0;
     var p2: usize = 0;
     var parsed: [4]usize = [_]usize{std.math.maxInt(usize)} ** 4;
