@@ -2,7 +2,7 @@ const std = @import("std");
 
 const util = @import("../util.zig");
 
-pub fn run(contents: []u8, out: anytype, allocator: std.mem.Allocator) !i128 {
+pub fn run(contents: []const u8, out: anytype, allocator: std.mem.Allocator) !i128 {
     var start = std.time.nanoTimestamp();
 
     var polymers = try loadPolymers(contents, allocator);
@@ -40,7 +40,7 @@ fn solve(polymers: Polymers, allocator: std.mem.Allocator, p1: *usize, p2: *usiz
     p2.* = findScore(polymers.base, currentPolymer);
 }
 
-fn findScore(baseString: []u8, currentPolymer: std.AutoHashMap([2]u8, usize)) usize {
+fn findScore(baseString: []const u8, currentPolymer: std.AutoHashMap([2]u8, usize)) usize {
     var table = std.mem.zeroes([26]usize);
     var it = currentPolymer.iterator();
     while (it.next()) |entry|
@@ -78,7 +78,7 @@ fn runRepeats(repeats: usize, combos: std.AutoHashMap([2]u8, u8), currentPolymer
 }
 
 const Polymers = struct {
-    base: []u8,
+    base: []const u8,
     combos: std.AutoHashMap([2]u8, u8),
 
     fn deinit(self: *@This()) void {
@@ -86,7 +86,7 @@ const Polymers = struct {
     }
 };
 
-fn loadPolymers(contents: []u8, allocator: std.mem.Allocator) !Polymers {
+fn loadPolymers(contents: []const u8, allocator: std.mem.Allocator) !Polymers {
     var ind: usize = 0;
     while (contents[ind] != '\n')
         ind += 1;

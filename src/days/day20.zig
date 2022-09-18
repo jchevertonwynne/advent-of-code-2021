@@ -2,7 +2,7 @@ const std = @import("std");
 
 const util = @import("../util.zig");
 
-pub fn run(contents: []u8, out: anytype, allocator: std.mem.Allocator) !i128 {
+pub fn run(contents: []const u8, out: anytype, allocator: std.mem.Allocator) !i128 {
     var start = std.time.nanoTimestamp();
 
     var image = try Image.load(contents, allocator);
@@ -89,7 +89,7 @@ const Image = struct {
         self.pixels.deinit();
     }
 
-    fn load(contents: []u8, allocator: std.mem.Allocator) !Image {
+    fn load(contents: []const u8, allocator: std.mem.Allocator) !Image {
         var result: Image = undefined;
         for (result.lookupTable) |*t, i|
             t.* = contents[i];

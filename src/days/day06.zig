@@ -2,7 +2,7 @@ const std = @import("std");
 
 const util = @import("../util.zig");
 
-pub fn run(contents: []u8, out: anytype) !i128 {
+pub fn run(contents: []const u8, out: anytype) !i128 {
     var start = std.time.nanoTimestamp();
 
     var fish = loadFish(contents);
@@ -33,7 +33,7 @@ fn solve(fish: [9]usize) struct { p1: usize, p2: usize } {
     return .{ .p1 = p1, .p2 = p2 };
 }
 
-fn loadFish(contents: []u8) [9]usize {
+fn loadFish(contents: []const u8) [9]usize {
     var fish = std.mem.zeroes([9]usize);
 
     var ind: usize = 0;

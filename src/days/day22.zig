@@ -2,7 +2,7 @@ const std = @import("std");
 
 const util = @import("../util.zig");
 
-pub fn run(contents: []u8, out: anytype, allocator: std.mem.Allocator) !i128 {
+pub fn run(contents: []const u8, out: anytype, allocator: std.mem.Allocator) !i128 {
     var start = std.time.nanoTimestamp();
 
     var commands = try loadCommands(contents, allocator);
@@ -123,33 +123,35 @@ const Cube = struct {
     }
 };
 
-fn loadCommands(contents: []u8, allocator: std.mem.Allocator) ![]Command {
+fn loadCommands(contents: []const u8, allocator: std.mem.Allocator) ![]Command {
     var commands = std.ArrayList(Command).init(allocator);
     defer commands.deinit();
 
     var ind: usize = 0;
     while (ind < contents.len) {
         var command: Command = undefined;
-        var size: usize = undefined;
         command.on = contents[ind + 1] == 'n';
         ind += 5;
         if (!command.on)
             ind += 1;
-        util.toSignedInt(isize, contents[ind..], &command.cube.start.x, &size);
-        ind += size + 2;
-        util.toSignedInt(isize, contents[ind..], &command.cube.end.x, &size);
-        command.cube.end.x += 1;
-        ind += size + 3;
-        util.toSignedInt(isize, contents[ind..], &command.cube.start.y, &size);
-        ind += size + 2;
-        util.toSignedInt(isize, contents[ind..], &command.cube.end.y, &size);
-        command.cube.end.y += 1;
-        ind += size + 3;
-        util.toSignedInt(isize, contents[ind..], &command.cube.start.z, &size);
-        ind += size + 2;
-        util.toSignedInt(isize, contents[ind..], &command.cube.end.z, &size);
-        command.cube.end.z += 1;
-        ind += size + 1;
+        var parse = util.toSignedInt(isize, contents[ind..]);
+        command.cube.start.x = parse.result;
+        ind += parse.size + 2;
+        parse = util.toSignedInt(isize, contents[ind..]);
+        command.cube.end.x = parse.result + 1;
+        ind += parse.size + 3;
+        parse = util.toSignedInt(isize, contents[ind..]);
+        command.cube.start.y = parse.result;
+        ind += parse.size + 2;
+        parse = util.toSignedInt(isize, contents[ind..]);
+        command.cube.start.y = parse.result + 1;
+        ind += parse.size + 3;
+        parse = util.toSignedInt(isize, contents[ind..]);
+        command.cube.start.z = parse.result;
+        ind += parse.size + 2;
+        parse = util.toSignedInt(isize, contents[ind..]);
+        command.cube.start.z = parse.result + 1;
+        ind += parse.size + 1;
         try commands.append(command);
     }
 

@@ -3,7 +3,7 @@ const builtin = @import("builtin");
 
 const util = @import("../util.zig");
 
-pub fn run(contents: []u8, out: anytype, allocator: std.mem.Allocator) !i128 {
+pub fn run(contents: []const u8, out: anytype, allocator: std.mem.Allocator) !i128 {
     var start = std.time.nanoTimestamp();
 
     var lines = try loadLines(contents, allocator);
@@ -20,22 +20,25 @@ pub fn run(contents: []u8, out: anytype, allocator: std.mem.Allocator) !i128 {
     return duration;
 }
 
-fn loadLines(contents: []u8, allocator: std.mem.Allocator) ![]Line {
+fn loadLines(contents: []const u8, allocator: std.mem.Allocator) ![]Line {
     var lines = std.ArrayList(Line).init(allocator);
     errdefer lines.deinit();
 
     var ind: usize = 0;
     while (ind < contents.len) {
         var line: Line = undefined;
-        var size: usize = undefined;
-        util.toSignedInt(i32, contents[ind..], &line.start.x, &size);
-        ind += size + 1;
-        util.toSignedInt(i32, contents[ind..], &line.start.y, &size);
-        ind += size + 4;
-        util.toSignedInt(i32, contents[ind..], &line.end.x, &size);
-        ind += size + 1;
-        util.toSignedInt(i32, contents[ind..], &line.end.y, &size);
-        ind += size + 1;
+        var parse = util.toSignedInt(i32, contents[ind..]);
+        line.start.x = parse.result;
+        ind += parse.size + 1;
+        parse = util.toSignedInt(i32, contents[ind..]);
+        line.start.y = parse.result;
+        ind += parse.size + 4;
+        parse = util.toSignedInt(i32, contents[ind..]);
+        line.end.x = parse.result;
+        ind += parse.size + 1;
+        parse = util.toSignedInt(i32, contents[ind..]);
+        line.end.y = parse.result;
+        ind += parse.size + 1;
 
         if (line.start.x > line.end.x)
             std.mem.swap(Point, &line.start, &line.end);

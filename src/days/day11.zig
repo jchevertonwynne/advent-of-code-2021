@@ -2,7 +2,7 @@ const std = @import("std");
 
 const util = @import("../util.zig");
 
-pub fn run(contents: []u8, out: anytype) !i128 {
+pub fn run(contents: []const u8, out: anytype) !i128 {
     var start = std.time.nanoTimestamp();
 
     var octopi = loadOctopi(contents);
@@ -134,7 +134,7 @@ fn solve(_octopi: Octopi, p1: *usize, p2: *usize) void {
 
 const Octopi = [10][10]u8;
 
-fn loadOctopi(contents: []u8) Octopi {
+fn loadOctopi(contents: []const u8) Octopi {
     var octopi: Octopi = undefined;
 
     var i: usize = 0;

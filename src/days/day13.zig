@@ -2,7 +2,7 @@ const std = @import("std");
 
 const util = @import("../util.zig");
 
-pub fn run(contents: []u8, out: anytype, allocator: std.mem.Allocator) !i128 {
+pub fn run(contents: []const u8, out: anytype, allocator: std.mem.Allocator) !i128 {
     var start = std.time.nanoTimestamp();
 
     var instructions = try Instructions.load(contents, allocator);
@@ -81,7 +81,7 @@ const Instructions = struct {
     dots: []Point,
     folds: []Fold,
 
-    fn load(contents: []u8, allocator: std.mem.Allocator) !Instructions {
+    fn load(contents: []const u8, allocator: std.mem.Allocator) !Instructions {
         var dots = std.ArrayList(Point).init(allocator);
         defer dots.deinit();
         var folds = std.ArrayList(Fold).init(allocator);
@@ -89,21 +89,22 @@ const Instructions = struct {
 
         var ind: usize = 0;
         while (contents[ind] != '\n') {
-            var size: usize = undefined;
             var dot: Point = undefined;
-            util.toUnsignedInt(usize, contents[ind..], &dot.x, &size);
-            ind += size + 1;
-            util.toUnsignedInt(usize, contents[ind..], &dot.y, &size);
-            ind += size + 1;
+            var parse = util.toUnsignedInt(usize, contents[ind..]);
+            dot.x = parse.result;
+            ind += parse.size + 1;
+            parse = util.toUnsignedInt(usize, contents[ind..]);
+            dot.y = parse.result;
+            ind += parse.size + 1;
             try dots.append(dot);
         }
 
         ind += 1;
         while (ind < contents.len) {
-            var size: usize = undefined;
             var fold = Fold{ .direction = @intToEnum(Direction, contents[ind + 11]), .index = undefined };
-            util.toUnsignedInt(usize, contents[ind + 13 ..], &fold.index, &size);
-            ind += 13 + size + 1;
+            var parse = util.toUnsignedInt(usize, contents[ind + 13 ..]);
+            fold.index = parse.result;
+            ind += 13 + parse.size + 1;
             try folds.append(fold);
         }
 

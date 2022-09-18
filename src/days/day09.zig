@@ -2,8 +2,11 @@ const std = @import("std");
 
 const util = @import("../util.zig");
 
-pub fn run(contents: []u8, out: anytype) !i128 {
+pub fn run(contents: []const u8, out: anytype, alloc: std.mem.Allocator) !i128 {
     var start = std.time.nanoTimestamp();
+
+    var contentsCopy = try alloc.dupe(u8, contents);
+    defer alloc.free(contentsCopy);
 
     var width = std.mem.indexOf(u8, contents, "\n") orelse unreachable;
     var height = contents.len / (width + 1);
@@ -16,27 +19,27 @@ pub fn run(contents: []u8, out: anytype) !i128 {
     while (i < width) : (i += 1) {
         var j: usize = 0;
         while (j < height) : (j += 1) {
-            var val = contents[i + (width + 1) * j];
+            var val = contentsCopy[i + (width + 1) * j];
             if (val == '9')
                 continue;
 
             var deepest = true;
 
             if (i > 0)
-                deepest = deepest and contents[(i - 1) + (width + 1) * j] > val;
+                deepest = deepest and contentsCopy[(i - 1) + (width + 1) * j] > val;
 
             if (i + 1 < width)
-                deepest = deepest and contents[(i + 1) + (width + 1) * j] > val;
+                deepest = deepest and contentsCopy[(i + 1) + (width + 1) * j] > val;
 
             if (j > 0)
-                deepest = deepest and contents[i + (width + 1) * (j - 1)] > val;
+                deepest = deepest and contentsCopy[i + (width + 1) * (j - 1)] > val;
 
             if (j + 1 < height)
-                deepest = deepest and contents[i + (width + 1) * (j + 1)] > val;
+                deepest = deepest and contentsCopy[i + (width + 1) * (j + 1)] > val;
 
             if (deepest) {
                 p1 += 1 + val - '0';
-                largest[3] = floodFill(i, j, width, height, contents);
+                largest[3] = floodFill(i, j, width, height, contentsCopy);
                 std.sort.sort(usize, &largest, {}, comptime std.sort.desc(usize));
             }
         }

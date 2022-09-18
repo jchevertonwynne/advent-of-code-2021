@@ -2,7 +2,7 @@ const std = @import("std");
 
 const util = @import("../util.zig");
 
-pub fn run(contents: []u8, out: anytype) !i128 {
+pub fn run(contents: []const u8, out: anytype) !i128 {
     var start = std.time.nanoTimestamp();
 
     var p1: usize = 0;
@@ -16,7 +16,7 @@ pub fn run(contents: []u8, out: anytype) !i128 {
     return duration;
 }
 
-fn solve(contents: []u8, p1: *usize, p2: *usize) !void {
+fn solve(contents: []const u8, p1: *usize, p2: *usize) !void {
     var horizontal: usize = 0;
     var part1DepthPart2Aim: usize = 0;
     var part2Depth: usize = 0;

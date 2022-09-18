@@ -2,7 +2,7 @@ const std = @import("std");
 
 const util = @import("../util.zig");
 
-pub fn run(contents: []u8, out: anytype, alloc: std.mem.Allocator) !i128 {
+pub fn run(contents: []const u8, out: anytype, alloc: std.mem.Allocator) !i128 {
     var start = std.time.nanoTimestamp();
 
     var p1: usize = undefined;
@@ -16,22 +16,24 @@ pub fn run(contents: []u8, out: anytype, alloc: std.mem.Allocator) !i128 {
     return duration;
 }
 
-fn solve(contents: []u8, p1: *usize, p2: *usize, alloc: std.mem.Allocator) !void {
+fn solve(contents: []const u8, p1: *usize, p2: *usize, alloc: std.mem.Allocator) !void {
     var scores = std.ArrayList(usize).init(alloc);
     defer scores.deinit();
+
+    var buf = std.ArrayList(u8).init(alloc);
+    defer buf.deinit();
 
     p1.* = 0;
 
     var ind: usize = 0;
     while (ind < contents.len) {
-        var start = ind;
-        var pos = ind;
+        defer buf.clearRetainingCapacity();
         var incomplete = true;
+        
         while (contents[ind] != '\n') {
             switch (contents[ind]) {
-                '(', '{', '[', '<' => {
-                    contents[pos] = contents[ind];
-                    pos += 1;
+                '(', '{', '[', '<' => |openingBracket| {
+                    try buf.append(openingBracket);
                 },
                 else => {
                     var paired: u8 = switch (contents[ind]) {
@@ -41,8 +43,8 @@ fn solve(contents: []u8, p1: *usize, p2: *usize, alloc: std.mem.Allocator) !void
                         '}' => '{',
                         else => unreachable,
                     };
-                    if (contents[pos - 1] == paired) {
-                        pos -= 1;
+                    if (buf.items[buf.items.len - 1] == paired) {
+                        _ = buf.pop();
                     } else {
                         incomplete = false;
 
@@ -54,8 +56,9 @@ fn solve(contents: []u8, p1: *usize, p2: *usize, alloc: std.mem.Allocator) !void
                             else => unreachable,
                         });
 
-                        while (contents[ind] != '\n')
+                        while (contents[ind] != '\n') {
                             ind += 1;
+                        }
 
                         break;
                     }
@@ -67,10 +70,11 @@ fn solve(contents: []u8, p1: *usize, p2: *usize, alloc: std.mem.Allocator) !void
         ind += 1;
 
         if (incomplete) {
-            var end = pos;
             var score: usize = 0;
-            while (end > start) : (end -= 1) {
-                var c = contents[end - 1];
+            var bufInd = buf.items.len;
+            while (bufInd != 0) {
+                bufInd -= 1;
+                var c = buf.items[bufInd];
                 score *= 5;
                 score += @as(usize, switch (c) {
                     '(' => 1,

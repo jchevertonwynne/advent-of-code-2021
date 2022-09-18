@@ -128,7 +128,14 @@ pub fn writeResponse(out: anytype, comptime day: usize, part1: anytype, part2: a
     }
 }
 
-pub fn toUnsignedInt(comptime T: type, contents: []const u8) struct { result: T, size: usize } {
+pub fn Result(comptime T: type) type {
+    return struct {
+        result: T,
+        size: usize,
+    };
+}
+
+pub fn toUnsignedInt(comptime T: type, contents: []const u8) Result(T) {
     if (@typeInfo(T).Int.signedness == .signed)
         @compileError("must supply a signed integer");
 
@@ -146,7 +153,7 @@ pub fn toUnsignedInt(comptime T: type, contents: []const u8) struct { result: T,
     return .{ .result = result, .size = characters + 1 };
 }
 
-pub fn toSignedInt(comptime T: type, contents: []const u8, number: *T, size: *usize) void {
+pub fn toSignedInt(comptime T: type, contents: []const u8) Result(T) {
     if (@typeInfo(T).Int.signedness == .unsigned)
         @compileError("must supply a signed integer");
 
@@ -168,6 +175,5 @@ pub fn toSignedInt(comptime T: type, contents: []const u8, number: *T, size: *us
     if (negative)
         result = -result;
 
-    number.* = result;
-    size.* = characters + 1;
+    return .{ .result = result, .size = characters + 1 };
 }

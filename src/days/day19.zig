@@ -2,7 +2,7 @@ const std = @import("std");
 
 const util = @import("../util.zig");
 
-pub fn run(contents: []u8, out: anytype, allocator: std.mem.Allocator) !i128 {
+pub fn run(contents: []const u8, out: anytype, allocator: std.mem.Allocator) !i128 {
     var start = std.time.nanoTimestamp();
 
     var scanners = try parseScanners(contents, allocator);
@@ -204,7 +204,7 @@ const Vec3 = struct {
 
 const Scanner = struct { number: usize, readings: std.ArrayList([24]Vec3) };
 
-fn parseScanners(contents: []u8, allocator: std.mem.Allocator) ![]Scanner {
+fn parseScanners(contents: []const u8, allocator: std.mem.Allocator) ![]Scanner {
     var scanners = std.ArrayList(Scanner).init(allocator);
     errdefer {
         for (scanners.items) |*scanner|
@@ -215,20 +215,23 @@ fn parseScanners(contents: []u8, allocator: std.mem.Allocator) ![]Scanner {
     var ind: usize = 0;
     while (ind < contents.len) {
         ind += 12;
-        var size: usize = undefined;
 
         var scanner: Scanner = .{ .number = undefined, .readings = std.ArrayList([24]Vec3).init(allocator) };
         errdefer scanner.readings.deinit();
-        util.toUnsignedInt(usize, contents[ind..], &scanner.number, &size);
-        ind += size + 5;
+        var parse = util.toUnsignedInt(usize, contents[ind..]);
+        scanner.number = parse.result;
+        ind += parse.size + 5;
         while (ind + 1 < contents.len and contents[ind] != '\n') {
             var scanResult: Vec3 = undefined;
-            util.toSignedInt(i32, contents[ind..], &scanResult.x, &size);
-            ind += size + 1;
-            util.toSignedInt(i32, contents[ind..], &scanResult.y, &size);
-            ind += size + 1;
-            util.toSignedInt(i32, contents[ind..], &scanResult.z, &size);
-            ind += size + 1;
+            var parse2 = util.toSignedInt(i32, contents[ind..]);
+            scanResult.x = parse2.result;
+            ind += parse2.size + 1;
+            parse2 = util.toSignedInt(i32, contents[ind..]);
+            scanResult.y = parse2.result;
+            ind += parse2.size + 1;
+            parse2 = util.toSignedInt(i32, contents[ind..]);
+            scanResult.z = parse2.result;
+            ind += parse2.size + 1;
             try scanner.readings.append(scanResult.rotations());
         }
         ind += 1;

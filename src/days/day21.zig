@@ -2,7 +2,7 @@ const std = @import("std");
 
 const util = @import("../util.zig");
 
-pub fn run(contents: []u8, out: anytype) !i128 {
+pub fn run(contents: []const u8, out: anytype) !i128 {
     var start = std.time.nanoTimestamp();
 
     var game = Game.parse(contents);
@@ -23,7 +23,7 @@ const Player = struct { score: usize, position: usize };
 const Game = struct {
     players: [2]Player,
 
-    fn parse(contents: []u8) Game {
+    fn parse(contents: []const u8) Game {
         var game = Game{ .players = [2]Player{ Player{ .score = 0, .position = undefined }, Player{ .score = 0, .position = undefined } } };
 
         game.players[0].position = contents[28] - '1';

@@ -2,7 +2,7 @@ const std = @import("std");
 
 const util = @import("../util.zig");
 
-pub fn run(contents: []u8, out: anytype) !i128 {
+pub fn run(contents: []const u8, out: anytype) !i128 {
     var min = std.time.nanoTimestamp();
 
     var area = Area.parse(contents);
@@ -66,19 +66,22 @@ const Area = struct {
         return point.x >= self.min.x and point.x <= self.max.x and point.y >= self.min.y and point.y <= self.max.y;
     }
 
-    fn parse(contents: []u8) Area {
+    fn parse(contents: []const u8) Area {
         var area: Area = undefined;
 
         var ind: usize = 15;
-        var size: usize = undefined;
 
-        util.toSignedInt(i32, contents[ind..], &area.min.x, &size);
-        ind += 2 + size;
-        util.toSignedInt(i32, contents[ind..], &area.max.x, &size);
-        ind += 4 + size;
-        util.toSignedInt(i32, contents[ind..], &area.min.y, &size);
-        ind += 2 + size;
-        util.toSignedInt(i32, contents[ind..], &area.max.y, &size);
+        var parsed = util.toSignedInt(i32, contents[ind..]);
+        area.min.x = parsed.result;
+        ind += 2 + parsed.size;
+        parsed = util.toSignedInt(i32, contents[ind..]);
+        area.max.x = parsed.result;
+        ind += 4 + parsed.size;
+        parsed = util.toSignedInt(i32, contents[ind..]);
+        area.min.y = parsed.result;
+        ind += 2 + parsed.size;
+        parsed = util.toSignedInt(i32, contents[ind..]);
+        area.max.y = parsed.result;
 
         return area;
     }

@@ -2,7 +2,7 @@ const std = @import("std");
 
 const util = @import("../util.zig");
 
-pub fn run(contents: []u8, out: anytype) !i128 {
+pub fn run(contents: []const u8, out: anytype) !i128 {
     var start = std.time.nanoTimestamp();
 
     var reader = BitReader.new(contents);
@@ -96,13 +96,13 @@ fn literal(reader: *BitReader) usize {
 const BitReader = struct {
     const Self = @This();
 
-    source: []u8,
+    source: []const u8,
     sourceInd: usize,
     current: u8,
     left: u3,
     totalRead: usize,
 
-    fn new(source: []u8) Self {
+    fn new(source: []const u8) Self {
         return Self{
             .source = source,
             .sourceInd = 0,

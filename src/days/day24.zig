@@ -2,7 +2,7 @@ const std = @import("std");
 
 const util = @import("../util.zig");
 
-pub fn run(contents: []u8, out: anytype, allocator: std.mem.Allocator) !i128 {
+pub fn run(contents: []const u8, out: anytype, allocator: std.mem.Allocator) !i128 {
     var start = std.time.nanoTimestamp();
 
     var instructions = try loadInstructions(contents, allocator);
@@ -158,7 +158,7 @@ fn runMachine(instructions: []Instruction, _state: [4]isize) [4]isize {
     return state;
 }
 
-fn loadInstructions(contents: []u8, allocator: std.mem.Allocator) ![]Instruction {
+fn loadInstructions(contents: []const u8, allocator: std.mem.Allocator) ![]Instruction {
     var instructions = std.ArrayList(Instruction).init(allocator);
     errdefer instructions.deinit();
 

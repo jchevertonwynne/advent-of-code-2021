@@ -2,7 +2,7 @@ const std = @import("std");
 
 const util = @import("../util.zig");
 
-pub fn run(contents: []u8, out: anytype, allocator: std.mem.Allocator) !i128 {
+pub fn run(contents: []const u8, out: anytype, allocator: std.mem.Allocator) !i128 {
     var start = std.time.nanoTimestamp();
 
     var crabs = try loadCrabs(contents, allocator);
@@ -93,17 +93,15 @@ fn part2(crabs: []usize) usize {
     return std.math.min(left, right);
 }
 
-fn loadCrabs(contents: []u8, allocator: std.mem.Allocator) ![]usize {
+fn loadCrabs(contents: []const u8, allocator: std.mem.Allocator) ![]usize {
     var crabs = std.ArrayList(usize).init(allocator);
     errdefer crabs.deinit();
 
     var ind: usize = 0;
     while (ind < contents.len) {
-        var number: usize = undefined;
-        var size: usize = 0;
-        util.toUnsignedInt(usize, contents[ind..], &number, &size);
-        try crabs.append(number);
-        ind += size + 1;
+        var parse = util.toUnsignedInt(usize, contents[ind..]);
+        try crabs.append(parse.result);
+        ind += parse.size + 1;
     }
 
     return crabs.toOwnedSlice();

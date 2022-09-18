@@ -2,7 +2,7 @@ const std = @import("std");
 
 const util = @import("../util.zig");
 
-pub fn run(contents: []u8, out: anytype, allocator: std.mem.Allocator) !i128 {
+pub fn run(contents: []const u8, out: anytype, allocator: std.mem.Allocator) !i128 {
     var start = std.time.nanoTimestamp();
 
     var state = try State.load(contents, allocator);
@@ -95,7 +95,7 @@ const State = struct {
         self.allocator.free(self.boards);
     }
 
-    fn load(contents: []u8, allocator: std.mem.Allocator) !State {
+    fn load(contents: []const u8, allocator: std.mem.Allocator) !State {
         var called = std.ArrayList(u7).init(allocator);
         defer called.deinit();
         var boards = std.ArrayList(Board).init(allocator);
