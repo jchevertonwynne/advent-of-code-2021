@@ -5,11 +5,9 @@ const util = @import("../util.zig");
 pub fn run(contents: []const u8, out: anytype, allocator: std.mem.Allocator) !i128 {
     var start = std.time.nanoTimestamp();
 
-    var state = try State.load(contents, allocator);
-    defer state.deinit();
-
-    var p1: usize = part1(state);
-    var p2: usize = part2(state);
+    var solved = try solveAll(contents, allocator);
+    var p1 = solved.part1;
+    var p2 = solved.part2;
 
     var duration = std.time.nanoTimestamp() - start;
 
@@ -18,134 +16,97 @@ pub fn run(contents: []const u8, out: anytype, allocator: std.mem.Allocator) !i1
     return duration;
 }
 
-fn part1(state: State) usize {
-    for (state.called) |called| {
-        for (state.boards) |*board| {
-            if (board.*.mark(called)) {
-                var result: usize = 0;
+const Result = struct {
+    part1: usize,
+    part2: usize,
+};
 
-                var i: usize = 0;
-                while (i < 100) : (i += 1) {
-                    if (board.board.get(i) != comptime std.math.maxInt(u5)) {
-                        result += i;
-                    }
-                }
-
-                std.mem.swap(Board, board, &state.boards[state.boards.len - 1]);
-
-                return result * called;
-            }
-        }
-    }
-
-    unreachable;
-}
-
-fn part2(state: State) usize {
-    var ind: usize = undefined;
-    var boards = state.boards[0..state.boards.len - 1];
-
-    for (state.called) |called, i| {
-        ind = i;
-        var boardsInd: usize = 0;
-
-        while (boardsInd < boards.len) {
-            if (boards[boardsInd].mark(called)) {
-                boards[boardsInd] = boards[boards.len - 1];
-                boards = boards[0 .. boards.len - 1];
-            } else {
-                boardsInd += 1;
-            }
-        }
-        if (boards.len == 1) {
-            break;
-        }
-    }
-
-    while (!boards[0].mark(state.called[ind])) {
-        ind += 1;
-    }
-
+fn compute(board: *Board, last: u7) usize {
     var result: usize = 0;
 
     var i: usize = 0;
     while (i < 100) : (i += 1) {
-        if (boards[0].board.get(i) != comptime std.math.maxInt(u5)) {
+        if (board.board.get(i) != comptime std.math.maxInt(u5)) {
             result += i;
         }
     }
-
-    return result * state.called[ind];
+    return result * last;
 }
 
-const State = struct {
-    const Self = @This();
+fn solveAll(contents: []const u8, allocator: std.mem.Allocator) !Result {
+    var calledS = try allocator.alloc(u7, 100);
+    defer allocator.free(calledS);
 
-    called: []u7,
-    boards: []Board,
-    allocator: std.mem.Allocator,
-
-    fn deinit(self: *Self) void {
-        self.allocator.free(self.called);
-        self.allocator.free(self.boards);
+    var readInd: usize = 0;
+    var ind: usize = 0;
+    while (contents[ind] != '\n') : (readInd += 1) {
+        var number: u7 = 0;
+        while ('0' <= contents[ind] and contents[ind] <= '9') : (ind += 1) {
+            number *= 10;
+            number += @truncate(u7, contents[ind] - '0');
+        }
+        calledS[readInd] = number;
+        ind += 1;
     }
 
-    fn load(contents: []const u8, allocator: std.mem.Allocator) !State {
-        var called = std.ArrayList(u7).init(allocator);
-        defer called.deinit();
-        var boards = std.ArrayList(Board).init(allocator);
-        defer boards.deinit();
+    ind += 1;
 
-        var ind: usize = 0;
-        while (contents[ind] != '\n') {
-            var number: u7 = 0;
-            while ('0' <= contents[ind] and contents[ind] <= '9') : (ind += 1) {
-                number *= 10;
-                number += @truncate(u7, contents[ind] - '0');
+    var smallest: Board = undefined;
+    var sind: usize = comptime std.math.maxInt(usize);
+    var send: u7 = undefined;
+    var largest: Board = undefined;
+    var lind: usize = 0;
+    var lend: u7 = undefined;
+
+    while (ind < contents.len) {
+        var board: Board = .{
+            .board = std.PackedIntArray(u5, 100).initAllTo(comptime std.math.maxInt(u5)),
+            .setRow = std.PackedIntArray(u3, 5).initAllTo(5),
+            .setCol = std.PackedIntArray(u3, 5).initAllTo(5),
+        };
+        var row: u5 = 0;
+        while (row < 5) : (row += 1) {
+            var col: u5 = 0;
+            while (col < 5) : (col += 1) {
+                const mapper = comptime blk: {
+                    var tab: ['9' - ' ' + 1]u7 = undefined;
+                    tab[' ' - ' '] = 0;
+                    var tabI: u8 = '0';
+                    while (tabI <= '9') : (tabI += 1) {
+                        tab[tabI - ' '] = tabI - '0';
+                    }
+                    break :blk tab;
+                };
+                var num: u7 = mapper[contents[ind] - ' '] * 10 + mapper[contents[ind + 1] - ' '];
+                board.board.set(num, row * 5 + col);
+
+                ind += 3;
             }
-            try called.append(number);
-            ind += 1;
+        }
+
+        for (calledS) |called, cind| {
+            if (board.mark(called)) {
+                if (cind <= sind) {
+                    smallest = board;
+                    sind = cind;
+                    send = called;
+                } else if (cind >= lind) {
+                    largest = board;
+                    lind = cind;
+                    lend = called;
+                }
+                break;
+            }
         }
 
         ind += 1;
-
-        while (ind < contents.len) {
-            var board: Board = .{
-                .board = std.PackedIntArray(u5, 100).initAllTo(comptime std.math.maxInt(u5)),
-                .setRow = std.PackedIntArray(u3, 5).initAllTo(5),
-                .setCol = std.PackedIntArray(u3, 5).initAllTo(5),
-            };
-            var row: u5 = 0;
-            while (row < 5) : (row += 1) {
-                var col: u5 = 0;
-                while (col < 5) : (col += 1) {
-                    var num: u7 = 0;
-                    for (contents[ind .. ind + 2]) |c| {
-                        if ('0' <= c and c <= '9') {
-                            num *= 10;
-                            num += @truncate(u7, c - '0');
-                        }
-                    }
-                    board.board.set(num, row * 5 + col);
-
-                    ind += 3;
-                }
-            }
-
-            try boards.append(board);
-            ind += 1;
-        }
-
-        var cowned = called.toOwnedSlice();
-        var bowned = boards.toOwnedSlice();
-
-        return State{
-            .called = cowned,
-            .boards = bowned,
-            .allocator = allocator,
-        };
     }
-};
+
+    return Result{
+        .part1 = compute(&smallest, send),
+        .part2 = compute(&largest, lend),
+    };
+}
 
 const Board = struct {
     const Self = @This();
