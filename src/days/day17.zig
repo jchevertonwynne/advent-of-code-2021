@@ -59,7 +59,16 @@ const Area = struct {
     max: Point,
 
     fn from(x1: i32, y1: i32, x2: i32, y2: i32) @This() {
-        return .{ .min = .{ .x = x1, .y = y1 }, .max = .{ .x = x2, .y = y2 } };
+        return .{
+            .min = .{
+                .x = x1,
+                .y = y1,
+            },
+            .max = .{
+                .x = x2,
+                .y = y2,
+            },
+        };
     }
 
     fn contains(self: @This(), point: Point) bool {

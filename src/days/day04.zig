@@ -21,17 +21,17 @@ pub fn run(contents: []const u8, out: anytype, allocator: std.mem.Allocator) !i1
 fn part1(state: State) usize {
     for (state.called) |called| {
         for (state.boards) |*board| {
-            board.mark(called);
-            if (board.won()) {
+            if (board.*.mark(called)) {
                 var result: usize = 0;
 
-                for (board.board[0..5]) |row| {
-                    var i: u7 = 0;
-                    while (i < 100) : (i += 1) {
-                        if (row & (@as(u100, 1) << i) != 0)
-                            result += i;
+                var i: usize = 0;
+                while (i < 100) : (i += 1) {
+                    if (board.board.get(i) != comptime std.math.maxInt(u5)) {
+                        result += i;
                     }
                 }
+
+                std.mem.swap(Board, board, &state.boards[state.boards.len - 1]);
 
                 return result * called;
             }
@@ -43,15 +43,14 @@ fn part1(state: State) usize {
 
 fn part2(state: State) usize {
     var ind: usize = undefined;
-    var boards = state.boards;
+    var boards = state.boards[0..state.boards.len - 1];
 
     for (state.called) |called, i| {
         ind = i;
         var boardsInd: usize = 0;
 
         while (boardsInd < boards.len) {
-            boards[boardsInd].mark(called);
-            if (boards[boardsInd].won()) {
+            if (boards[boardsInd].mark(called)) {
                 boards[boardsInd] = boards[boards.len - 1];
                 boards = boards[0 .. boards.len - 1];
             } else {
@@ -63,24 +62,20 @@ fn part2(state: State) usize {
         }
     }
 
-    var lastBoard = boards[0];
-
-    while (!lastBoard.won()) : (ind += 1) {
-        lastBoard.mark(state.called[ind]);
+    while (!boards[0].mark(state.called[ind])) {
+        ind += 1;
     }
 
     var result: usize = 0;
 
-    for (lastBoard.board[0..5]) |row| {
-        var shift: u7 = 0;
-        while (shift < 100) : (shift += 1) {
-            if (row & (@as(u100, 1) << shift) != 0) {
-                result += shift;
-            }
+    var i: usize = 0;
+    while (i < 100) : (i += 1) {
+        if (boards[0].board.get(i) != comptime std.math.maxInt(u5)) {
+            result += i;
         }
     }
 
-    return result * state.called[ind - 1];
+    return result * state.called[ind];
 }
 
 const State = struct {
@@ -115,34 +110,25 @@ const State = struct {
         ind += 1;
 
         while (ind < contents.len) {
-            var board: Board = .{ .board = std.mem.zeroes([10]u100) };
-            var row: usize = 0;
-            var temp: [5][5]u7 = std.mem.zeroes([5][5]u7);
+            var board: Board = .{
+                .board = std.PackedIntArray(u5, 100).initAllTo(comptime std.math.maxInt(u5)),
+                .setRow = std.PackedIntArray(u3, 5).initAllTo(5),
+                .setCol = std.PackedIntArray(u3, 5).initAllTo(5),
+            };
+            var row: u5 = 0;
             while (row < 5) : (row += 1) {
-                var cell: u7 = 0;
-                while (cell < 5) : (cell += 1) {
-                    temp[row][cell] = 0;
+                var col: u5 = 0;
+                while (col < 5) : (col += 1) {
+                    var num: u7 = 0;
                     for (contents[ind .. ind + 2]) |c| {
                         if ('0' <= c and c <= '9') {
-                            temp[row][cell] *= 10;
-                            temp[row][cell] += @truncate(u7, c - '0');
+                            num *= 10;
+                            num += @truncate(u7, c - '0');
                         }
                     }
+                    board.board.set(num, row * 5 + col);
 
                     ind += 3;
-                }
-            }
-            for (temp) |tempRow, i| {
-                for (tempRow) |cell| {
-                    board.board[i] |= @as(u100, 1) << cell;
-                }
-            }
-
-            var column: usize = 0;
-            while (column < 5) : (column += 1) {
-                var tempRow: usize = 0;
-                while (tempRow < 5) : (tempRow += 1) {
-                    board.board[column + 5] |= @as(u100, 1) << temp[tempRow][column];
                 }
             }
 
@@ -150,28 +136,36 @@ const State = struct {
             ind += 1;
         }
 
-        return State{ .called = called.toOwnedSlice(), .boards = boards.toOwnedSlice(), .allocator = allocator };
+        var cowned = called.toOwnedSlice();
+        var bowned = boards.toOwnedSlice();
+
+        return State{
+            .called = cowned,
+            .boards = bowned,
+            .allocator = allocator,
+        };
     }
 };
 
 const Board = struct {
     const Self = @This();
 
-    board: [10]u100,
+    board: std.PackedIntArray(u5, 100),
+    setRow: std.PackedIntArray(u3, 5),
+    setCol: std.PackedIntArray(u3, 5),
 
-    fn mark(self: *Self, val: u7) void {
-        var mask = ~(@as(u100, 1) << val);
-        for (self.board) |*b|
-            b.* &= mask;
-    }
-
-    fn won(self: *Self) bool {
-        for (self.board) |b| {
-            if (b == 0) {
-                return true;
-            }
+    fn mark(self: *Self, val: u7) bool {
+        var ind = self.board.get(val);
+        self.board.set(val, comptime std.math.maxInt(u5));
+        if (ind != comptime std.math.maxInt(u5)) {
+            var col = ind % 5;
+            var row = ind / 5;
+            var currCol = self.setCol.get(col);
+            var currRow = self.setRow.get(row);
+            self.setCol.set(col, currCol - 1);
+            self.setRow.set(row, currRow - 1);
+            return currCol == 1 or currRow == 1;
         }
-
         return false;
     }
 };

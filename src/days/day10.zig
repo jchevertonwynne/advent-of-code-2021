@@ -29,7 +29,7 @@ fn solve(contents: []const u8, p1: *usize, p2: *usize, alloc: std.mem.Allocator)
     while (ind < contents.len) {
         defer buf.clearRetainingCapacity();
         var incomplete = true;
-        
+
         while (contents[ind] != '\n') {
             switch (contents[ind]) {
                 '(', '{', '[', '<' => |openingBracket| {
