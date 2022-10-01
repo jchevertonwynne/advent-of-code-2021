@@ -26,7 +26,7 @@ fn compute(board: *Board, last: u7) usize {
 
     var i: usize = 0;
     while (i < 100) : (i += 1) {
-        if (board.board.get(i) != comptime std.math.maxInt(u5)) {
+        if (board.board[i] != comptime std.math.maxInt(u5)) {
             result += i;
         }
     }
@@ -59,9 +59,9 @@ fn solveAll(contents: []const u8) Result {
 
     while (ind < contents.len) {
         var board: Board = .{
-            .board = std.PackedIntArray(u5, 100).initAllTo(comptime std.math.maxInt(u5)),
-            .setRow = std.PackedIntArray(u3, 5).initAllTo(5),
-            .setCol = std.PackedIntArray(u3, 5).initAllTo(5),
+            .board = [_]u5{ comptime std.math.maxInt(u5) } ** 100,
+            .setRow = [_]u3{ 5 } ** 5,
+            .setCol = [_]u3{ 5 } ** 5,
         };
         var row: u5 = 0;
         while (row < 5) : (row += 1) {
@@ -77,7 +77,7 @@ fn solveAll(contents: []const u8) Result {
                     break :blk tab;
                 };
                 var num: u7 = mapper[contents[ind] - ' '] * 10 + mapper[contents[ind + 1] - ' '];
-                board.board.set(num, row * 5 + col);
+                board.board[num] = row * 5 + col;
 
                 ind += 3;
             }
@@ -110,21 +110,19 @@ fn solveAll(contents: []const u8) Result {
 const Board = struct {
     const Self = @This();
 
-    board: std.PackedIntArray(u5, 100),
-    setRow: std.PackedIntArray(u3, 5),
-    setCol: std.PackedIntArray(u3, 5),
+    board: [100]u5,
+    setRow: [5]u3,
+    setCol: [5]u3,
 
     fn mark(self: *Self, val: u7) bool {
-        var ind = self.board.get(val);
-        self.board.set(val, comptime std.math.maxInt(u5));
+        var ind = self.board[val];
+        self.board[val] = comptime std.math.maxInt(u5);
         if (ind != comptime std.math.maxInt(u5)) {
             var col = ind % 5;
             var row = ind / 5;
-            var currCol = self.setCol.get(col);
-            var currRow = self.setRow.get(row);
-            self.setCol.set(col, currCol - 1);
-            self.setRow.set(row, currRow - 1);
-            return currCol == 1 or currRow == 1;
+            self.setCol[col] -= 1;
+            self.setRow[row] -= 1;
+            return self.setCol[col] == 0 or self.setRow[row] == 0;
         }
         return false;
     }
