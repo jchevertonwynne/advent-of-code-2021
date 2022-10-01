@@ -2,10 +2,10 @@ const std = @import("std");
 
 const util = @import("../util.zig");
 
-pub fn run(contents: []const u8, out: anytype, allocator: std.mem.Allocator) !i128 {
+pub fn run(contents: []const u8, out: anytype) !i128 {
     var start = std.time.nanoTimestamp();
 
-    var solved = try solveAll(contents, allocator);
+    var solved = solveAll(contents);
     var p1 = solved.part1;
     var p2 = solved.part2;
 
@@ -33,9 +33,8 @@ fn compute(board: *Board, last: u7) usize {
     return result * last;
 }
 
-fn solveAll(contents: []const u8, allocator: std.mem.Allocator) !Result {
-    var calledS = try allocator.alloc(u7, 100);
-    defer allocator.free(calledS);
+fn solveAll(contents: []const u8) Result {
+    var calledS: [100]u7 = undefined;
 
     var readInd: usize = 0;
     var ind: usize = 0;
