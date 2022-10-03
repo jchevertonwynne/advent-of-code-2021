@@ -2,6 +2,8 @@ const std = @import("std");
 
 const util = @import("../util.zig");
 
+const DUMMY: u5 = std.math.maxInt(u5);
+
 pub fn run(contents: []const u8, out: anytype) !i128 {
     var start = std.time.nanoTimestamp();
 
@@ -16,35 +18,29 @@ pub fn run(contents: []const u8, out: anytype) !i128 {
     return duration;
 }
 
-const Result = struct {
-    part1: usize,
-    part2: usize,
-};
-
 fn compute(board: *Board, last: u7) usize {
     var result: usize = 0;
 
     var i: usize = 0;
     while (i < 100) : (i += 1) {
-        if (board.board[i] != comptime std.math.maxInt(u5)) {
+        if (board.board[i] != DUMMY) {
             result += i;
         }
     }
     return result * last;
 }
 
-fn solveAll(contents: []const u8) Result {
-    var calledS: [100]u7 = undefined;
+fn solveAll(contents: []const u8) struct { part1: usize, part2: usize } {
+    var calledA: [100]u7 = undefined;
 
-    var readInd: usize = 0;
     var ind: usize = 0;
-    while (contents[ind] != '\n') : (readInd += 1) {
+    for (calledA) |*called| {
         var number: u7 = 0;
         while ('0' <= contents[ind] and contents[ind] <= '9') : (ind += 1) {
             number *= 10;
             number += @truncate(u7, contents[ind] - '0');
         }
-        calledS[readInd] = number;
+        called.* = number;
         ind += 1;
     }
 
@@ -59,14 +55,14 @@ fn solveAll(contents: []const u8) Result {
 
     while (ind < contents.len) {
         var board: Board = .{
-            .board = [_]u5{ comptime std.math.maxInt(u5) } ** 100,
-            .setRow = [_]u3{ 5 } ** 5,
-            .setCol = [_]u3{ 5 } ** 5,
+            .board = [_]u5{DUMMY} ** 100,
+            .setRow = [_]u3{5} ** 5,
+            .setCol = [_]u3{5} ** 5,
         };
-        var row: u5 = 0;
-        while (row < 5) : (row += 1) {
-            var col: u5 = 0;
-            while (col < 5) : (col += 1) {
+        comptime var row: u5 = 0;
+        inline while (row < 5) : (row += 1) {
+            comptime var col: u5 = 0;
+            inline while (col < 5) : (col += 1) {
                 const mapper = comptime blk: {
                     var tab: ['9' - ' ' + 1]u7 = undefined;
                     tab[' ' - ' '] = 0;
@@ -83,7 +79,7 @@ fn solveAll(contents: []const u8) Result {
             }
         }
 
-        for (calledS) |called, cind| {
+        for (calledA) |called, cind| {
             if (board.mark(called)) {
                 if (cind <= sind) {
                     smallest = board;
@@ -101,7 +97,7 @@ fn solveAll(contents: []const u8) Result {
         ind += 1;
     }
 
-    return Result{
+    return .{
         .part1 = compute(&smallest, send),
         .part2 = compute(&largest, lend),
     };
@@ -116,14 +112,16 @@ const Board = struct {
 
     fn mark(self: *Self, val: u7) bool {
         var ind = self.board[val];
-        self.board[val] = comptime std.math.maxInt(u5);
-        if (ind != comptime std.math.maxInt(u5)) {
+
+        if (ind != DUMMY) {
+            self.board[val] = DUMMY;
             var col = ind % 5;
             var row = ind / 5;
             self.setCol[col] -= 1;
             self.setRow[row] -= 1;
             return self.setCol[col] == 0 or self.setRow[row] == 0;
         }
+
         return false;
     }
 };
