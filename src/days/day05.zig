@@ -11,7 +11,7 @@ pub fn run(contents: []const u8, out: anytype, allocator: std.mem.Allocator) !i1
 
     var p1: usize = 0;
     var p2: usize = 0;
-    try solve(lines, allocator, &p1, &p2);
+    solve(lines, &p1, &p2);
 
     var duration = std.time.nanoTimestamp() - start;
 
@@ -49,11 +49,11 @@ fn loadLines(contents: []const u8, allocator: std.mem.Allocator) ![]Line {
     return lines.toOwnedSlice();
 }
 
-fn solve(lines: []Line, allocator: std.mem.Allocator, p1: *usize, p2: *usize) !void {
-    var intersections1 = util.HashSet(Point).init(allocator);
-    defer intersections1.deinit();
-    var intersections2 = util.HashSet(Point).init(allocator);
-    defer intersections2.deinit();
+fn solve(lines: []Line, p1: *usize, p2: *usize) void {
+    p1.* = 0;
+    p2.* = 0;
+    var intersections1 = std.mem.zeroes([1000][1000]u16);
+    var intersections2 = std.mem.zeroes([1000][1000]u16);
 
     for (lines) |line, i| {
         for (lines[0..i]) |other| {
@@ -62,16 +62,17 @@ fn solve(lines: []Line, allocator: std.mem.Allocator, p1: *usize, p2: *usize) !v
             if (Line.findIntersection(line, other)) |intersection| {
                 var traverse = intersection.traverse();
                 while (traverse.next()) |point| {
-                    try intersections2.insert(point);
-                    if (lineFlat and otherFlat)
-                        try intersections1.insert(point);
+                    intersections2[@intCast(usize, point.x)][@intCast(usize, point.y)] += 1;
+                    p2.* += @boolToInt(intersections2[@intCast(usize, point.x)][@intCast(usize, point.y)] == 1);
+
+                    if (lineFlat and otherFlat) {
+                        intersections1[@intCast(usize, point.x)][@intCast(usize, point.y)] += 1;
+                        p1.* += @boolToInt(intersections1[@intCast(usize, point.x)][@intCast(usize, point.y)] == 1);
+                    }
                 }
             }
         }
     }
-
-    p1.* = intersections1.count();
-    p2.* = intersections2.count();
 }
 
 const LineTraverser = struct {
@@ -158,7 +159,16 @@ const Line = struct {
                     return null;
                 var botY = max(minAY, minBY);
                 var topY = min(maxAY, maxBY);
-                return Line{ .start = Point{ .x = a.start.x, .y = botY }, .end = Point{ .x = a.start.x, .y = topY } };
+                return Line{
+                    .start = Point{
+                        .x = a.start.x,
+                        .y = botY,
+                    },
+                    .end = Point{
+                        .x = a.start.x,
+                        .y = topY,
+                    },
+                };
             }
             // b is not vertical
             if (a.start.x < minBX or a.start.x > maxBX) // check if lines are within range
@@ -170,7 +180,16 @@ const Line = struct {
             // check if intersect is within a
             if (actualY < minAY or actualY > maxAY)
                 return null;
-            return Line{ .start = Point{ .x = a.start.x, .y = actualY }, .end = Point{ .x = a.start.x, .y = actualY } };
+            return Line{
+                .start = Point{
+                    .x = a.start.x,
+                    .y = actualY,
+                },
+                .end = Point{
+                    .x = a.start.x,
+                    .y = actualY,
+                },
+            };
         }
 
         // calculate y = ax + b for both lines & check for intersection
@@ -198,7 +217,16 @@ const Line = struct {
                 var yStart = min(maxAY, maxBY);
                 var xEnd = min(maxAX, maxBX);
                 var yEnd = max(minAY, minBY);
-                return Line{ .start = Point{ .x = xStart, .y = yStart }, .end = Point{ .x = xEnd, .y = yEnd } };
+                return Line{
+                    .start = Point{
+                        .x = xStart,
+                        .y = yStart,
+                    },
+                    .end = Point{
+                        .x = xEnd,
+                        .y = yEnd,
+                    },
+                };
             }
 
             // else pos diag or horizontal
@@ -206,7 +234,16 @@ const Line = struct {
             var yStart = max(minAY, minBY);
             var xEnd = min(maxAX, maxBX);
             var yEnd = min(maxAY, maxBY);
-            return Line{ .start = Point{ .x = xStart, .y = yStart }, .end = Point{ .x = xEnd, .y = yEnd } };
+            return Line{
+                .start = Point{
+                    .x = xStart,
+                    .y = yStart,
+                },
+                .end = Point{
+                    .x = xEnd,
+                    .y = yEnd,
+                },
+            };
         }
 
         // calculate x intersection of the lines and check if in range for both
@@ -229,11 +266,20 @@ const Line = struct {
         if (yIntersect < minBY or yIntersect > maxBY)
             return null;
 
-        return Line{ .start = Point{ .x = xIntersect, .y = yIntersect }, .end = Point{ .x = xIntersect, .y = yIntersect } };
+        return Line{
+            .start = Point{
+                .x = xIntersect,
+                .y = yIntersect,
+            },
+            .end = Point{
+                .x = xIntersect,
+                .y = yIntersect,
+            },
+        };
     }
 
     fn equal(a: Line, b: Line) bool {
-        return (Point.equal(a.start, b.start) and Point.equal(a.end, b.end)) or (Point.equal(a.start, b.end) and Point.equal(a.end, b.start));
+        return std.meta.eql(a, b) or std.meta.eql(a, Line{ .start = b.end, .end = b.start });
     }
 };
 

@@ -117,11 +117,11 @@ pub fn writeResponse(out: anytype, comptime day: usize, part1: anytype, part2: a
     } else {
         try out.print("\tpart 2:\t{}\n", .{part2});
     }
-    if (duration < 1000) {
+    if (duration < 10_000) {
         try out.print("\ttime:\t{d}ns\n\n", .{duration});
-    } else if (duration < 1_000_000) {
+    } else if (duration < 10_000_000) {
         try out.print("\ttime:\t{d}us\n\n", .{@divFloor(duration, 1_000)});
-    } else if (duration < 1_000_000_000) {
+    } else if (duration < 10_000_000_000) {
         try out.print("\ttime:\t{d}ms\n\n", .{@divFloor(duration, 1_000_000)});
     } else {
         try out.print("\ttime:\t{d}s\n\n", .{@divFloor(duration, 1_000_000_000)});

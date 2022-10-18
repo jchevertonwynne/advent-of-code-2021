@@ -2,17 +2,12 @@ const std = @import("std");
 
 const util = @import("../util.zig");
 
-pub fn run(contents: []const u8, out: anytype, alloc: std.mem.Allocator) !i128 {
+pub fn run(contents: []const u8, out: anytype) !i128 {
     var start = std.time.nanoTimestamp();
 
-    var contentsCopy = try alloc.dupe(u8, contents);
-    defer alloc.free(contentsCopy);
-
-    var entries = try Entry.loadEntries(contentsCopy, alloc);
-    defer alloc.free(entries);
-
-    var p1: usize = part1(entries);
-    var p2: usize = part2(entries);
+    var solve = megaSolve(contents);
+    var p1 = solve.part1;
+    var p2 = solve.part2;
 
     var duration = std.time.nanoTimestamp() - start;
 
@@ -21,173 +16,128 @@ pub fn run(contents: []const u8, out: anytype, alloc: std.mem.Allocator) !i128 {
     return duration;
 }
 
-fn part1(entries: []Entry) usize {
-    var result: usize = 0;
-    for (entries) |entry| {
-        for (entry.outputs) |output| {
-            const knownLengths = [_]usize{ 2, 3, 4, 7 };
-            inline for (knownLengths) |knownLength| {
-                if (output.len == knownLength) {
-                    result += 1;
+fn sortPop(_: void, a: u7, b: u7) bool {
+    return @popCount(a) < @popCount(b);
+}
+
+fn megaSolve(contents: []const u8) struct { part1: usize, part2: usize } {
+    var p1: usize = 0;
+    var p2: usize = 0;
+
+    var ind: usize = 0;
+    while (ind < contents.len) {
+        var patterns = [_]u7{0} ** 10;
+        var outputs = [_]u7{0} ** 4;
+        for (patterns) |*pattern| {
+            var pat: u7 = 0;
+            while ('a' <= contents[ind] and contents[ind] <= 'g') : (ind += 1) {
+                pat |= @as(u7, 1) << @truncate(u3, contents[ind] - 'a');
+            }
+            pattern.* = pat;
+            ind += 1;
+        }
+
+        std.sort.sort(u7, &patterns, {}, sortPop);
+
+        ind += 2;
+        for (outputs) |*output| {
+            var out: u7 = 0;
+            while ('a' <= contents[ind] and contents[ind] <= 'g') : (ind += 1) {
+                out |= @as(u7, 1) << @truncate(u3, contents[ind] - 'a');
+            }
+            output.* = out;
+            ind += 1;
+        }
+
+        for (outputs) |output| {
+            var pc = @popCount(output);
+            if (pc == 2 or pc == 3 or pc == 4 or pc == 7) {
+                p1 += 1;
+            }
+        }
+
+        var numbers: [10]u8 = undefined;
+        numbers[1] = 0;
+        numbers[7] = 1;
+        numbers[4] = 2;
+        numbers[8] = 9;
+
+        if (@popCount(patterns[6] & patterns[numbers[1]]) == 1) {
+            numbers[6] = 6;
+            if (patterns[7] & patterns[numbers[4]] == patterns[numbers[4]]) {
+                numbers[9] = 7;
+                numbers[0] = 8;
+            } else {
+                numbers[9] = 8;
+                numbers[0] = 7;
+            }
+        } else if (@popCount(patterns[7] & patterns[numbers[1]]) == 1) {
+            numbers[6] = 7;
+            if (patterns[6] & patterns[numbers[4]] == patterns[numbers[4]]) {
+                numbers[9] = 6;
+                numbers[0] = 8;
+            } else {
+                numbers[9] = 8;
+                numbers[0] = 6;
+            }
+        } else {
+            numbers[6] = 8;
+            if (patterns[6] & patterns[numbers[4]] == patterns[numbers[4]]) {
+                numbers[9] = 6;
+                numbers[0] = 7;
+            } else {
+                numbers[9] = 7;
+                numbers[0] = 6;
+            }
+        }
+
+        if (@popCount(patterns[3] & patterns[numbers[1]]) == 2) {
+            numbers[3] = 3;
+            if (patterns[4] & patterns[numbers[6]] == patterns[4]) {
+                numbers[5] = 4;
+                numbers[2] = 5;
+            } else {
+                numbers[5] = 5;
+                numbers[2] = 4;
+            }
+        } else if (@popCount(patterns[4] & patterns[numbers[1]]) == 2) {
+            numbers[3] = 4;
+            if (patterns[3] & patterns[numbers[6]] == patterns[3]) {
+                numbers[5] = 3;
+                numbers[2] = 5;
+            } else {
+                numbers[5] = 5;
+                numbers[2] = 3;
+            }
+        } else {
+            numbers[3] = 5;
+            if (patterns[3] & patterns[numbers[6]] == patterns[3]) {
+                numbers[5] = 3;
+                numbers[2] = 4;
+            } else {
+                numbers[5] = 4;
+                numbers[2] = 3;
+            }
+        }
+
+        var res: usize = 0;
+        for (outputs) |o| {
+            res *= 10;
+            for (numbers) |n, i| {
+                if (o == patterns[n]) {
+                    res += i;
                     break;
                 }
             }
         }
+
+        p2 += res;
     }
-    return result;
+
+    return .{ .part1 = p1, .part2 = p2 };
 }
 
-fn part2(entries: []Entry) usize {
-    var result: usize = 0;
-
-    for (entries) |entry| {
-        var numbers: [10]?[]u8 = .{null} ** 10;
-        var segments: [7]?u8 = .{null} ** 7;
-
-        var table: [7]usize = std.mem.zeroes([7]usize);
-        for (entry.patterns) |pattern| {
-            for (pattern) |p| {
-                table[p] += 1;
-            }
-        }
-
-        // segments 3, 4 and 6 exist 6, 4 and 9 times in the table
-        segments[3] = @truncate(u8, std.mem.indexOf(usize, &table, &[_]usize{6}) orelse unreachable);
-        segments[4] = @truncate(u8, std.mem.indexOf(usize, &table, &[_]usize{4}) orelse unreachable);
-        segments[6] = @truncate(u8, std.mem.indexOf(usize, &table, &[_]usize{9}) orelse unreachable);
-
-        // we know that numbers 1, 4, 7 and 8 have patterns uniquely of lengths 2, 4, 3 and 7
-        const known = [_]usize{ 1, 4, 7, 8 };
-        const knownLengths = [_]usize{ 2, 4, 3, 7 };
-
-        for (entry.patterns) |pattern| {
-            inline for (known) |k, i| {
-                if (pattern.len == knownLengths[i]) {
-                    numbers[k] = pattern;
-                    break;
-                }
-            }
-        }
-
-        // adjust table to only unknown counts
-        for (known) |k| {
-            for (numbers[k].?) |n| {
-                table[n] -= 1;
-            }
-        }
-
-        // set table undiscoverably high
-        table[segments[3].?] = 100;
-        table[segments[4].?] = 100;
-        table[segments[6].?] = 100;
-
-        // { 6, 5, 6, _, _, 4, _ }
-        // { 6, 5, 6, 4, 3, 4, 5}
-
-        segments[1] = @truncate(u8, std.mem.indexOf(usize, &table, &[_]usize{5}) orelse unreachable);
-        segments[5] = @truncate(u8, std.mem.indexOf(usize, &table, &[_]usize{4}) orelse unreachable);
-
-        // 0 (1) 2 3 (4) 5 6 (7) (8) 9
-        // 0 (1) 2 (3) (4) (5) (6)
-
-        // diff between seven and one is the 0 segment
-        var sevenSet = std.bit_set.IntegerBitSet(7).initEmpty();
-        for (numbers[7].?) |n|
-            sevenSet.set(n);
-        for (numbers[1].?) |n|
-            sevenSet.unset(n);
-        segments[0] = @truncate(u8, sevenSet.findFirstSet() orelse unreachable);
-
-        // 0 (1) 2 3 (4) 5 6 (7) (8) 9
-        // (0) (1) 2 (3) (4) (5) (6)
-
-        // only segment 2 remains, just work out which it is
-        var set = std.bit_set.IntegerBitSet(7).initFull();
-        for (segments) |segment| {
-            if (segment) |s| {
-                set.unset(s);
-            }
-        }
-        segments[2] = @truncate(u8, set.findFirstSet() orelse unreachable);
-
-        // all segments are now know, calculate 0, 2, 3, 5, 6 and 9.
-        numbers[0] = calculateNumber(6, segments, [_]usize{ 0, 2, 3, 4, 5, 6 }, entry.patterns);
-        numbers[2] = calculateNumber(5, segments, [_]usize{ 0, 1, 2, 4, 5 }, entry.patterns);
-        numbers[3] = calculateNumber(5, segments, [_]usize{ 0, 1, 2, 5, 6 }, entry.patterns);
-        numbers[5] = calculateNumber(5, segments, [_]usize{ 0, 1, 2, 3, 6 }, entry.patterns);
-        numbers[6] = calculateNumber(6, segments, [_]usize{ 0, 1, 2, 3, 4, 6 }, entry.patterns);
-        numbers[9] = calculateNumber(6, segments, [_]usize{ 0, 1, 2, 3, 5, 6 }, entry.patterns);
-
-        // use this to calculate based on the outputs
-        var number: usize = 0;
-        for (entry.outputs) |output| {
-            number *= 10;
-            for (numbers) |n, ind| {
-                if (std.mem.eql(u8, n.?, output)) {
-                    number += ind;
-                    break;
-                }
-            }
-        }
-        result += number;
-    }
-
-    return result;
-}
-
-fn calculateNumber(comptime expectedSize: usize, segments: [7]?u8, expectedSegments: [expectedSize]usize, entryPatterns: [10][]u8) []u8 {
-    var buf: [expectedSize]u8 = undefined;
-    for (expectedSegments) |exp, i| {
-        buf[i] = segments[exp].?;
-    }
-
-    std.sort.sort(u8, &buf, {}, comptime std.sort.asc(u8));
-
-    for (entryPatterns) |pattern| {
-        if (std.mem.eql(u8, pattern, &buf)) {
-            return pattern;
-        }
-    }
-
-    unreachable;
-}
-
-const Entry = struct {
-    patterns: [10][]u8,
-    outputs: [4][]u8,
-
-    fn loadEntries(contents: []u8, allocator: std.mem.Allocator) ![]Entry {
-        var entries = std.ArrayList(Entry).init(allocator);
-        errdefer entries.deinit();
-
-        var ind: usize = 0;
-        while (ind < contents.len) {
-            var entry = Entry{ .patterns = undefined, .outputs = undefined };
-            for (entry.patterns) |*pattern| {
-                var pat = getString(contents[ind..]);
-                for (pat) |*p|
-                    p.* -= 'a';
-                std.sort.sort(u8, pat, {}, comptime std.sort.asc(u8));
-                pattern.* = pat;
-                ind += 1 + pattern.*.len;
-            }
-            ind += 2;
-            for (entry.outputs) |*output| {
-                var out = getString(contents[ind..]);
-                for (out) |*o|
-                    o.* -= 'a';
-                std.sort.sort(u8, out, {}, comptime std.sort.asc(u8));
-                output.* = out;
-                ind += 1 + output.*.len;
-            }
-            try entries.append(entry);
-        }
-
-        return entries.toOwnedSlice();
-    }
-};
-
-fn getString(contents: []u8) []u8 {
+fn getString(contents: []const u8) []const u8 {
     var length: usize = 0;
     while ('a' <= contents[length] and contents[length] <= 'g')
         length += 1;

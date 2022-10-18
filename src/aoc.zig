@@ -23,11 +23,11 @@ pub fn main() !void {
     // duration += try @import("./days/day01.zig").run(contents.day01, &writer);
     // duration += try @import("./days/day02.zig").run(contents.day02, &writer);
     // duration += try @import("./days/day03.zig").run(contents.day03, &writer, alloc);
-    duration += try @import("./days/day04.zig").run(contents.day04, &writer);
+    // duration += try @import("./days/day04.zig").run(contents.day04, &writer);
     // duration += try @import("./days/day05.zig").run(contents.day05, &writer, alloc);
     // duration += try @import("./days/day06.zig").run(contents.day06, &writer);
     // duration += try @import("./days/day07.zig").run(contents.day07, &writer, alloc);
-    // duration += try @import("./days/day08.zig").run(contents.day08, &writer, alloc);
+    duration += try @import("./days/day08.zig").run(contents.day08, &writer);
     // duration += try @import("./days/day09.zig").run(contents.day09, &writer, alloc);
     // duration += try @import("days/day10.zig").run(contents.day10, &writer, alloc);
     // duration += try @import("./days/day11.zig").run(contents.day11, &writer);

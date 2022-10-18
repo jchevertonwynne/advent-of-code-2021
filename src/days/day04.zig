@@ -59,9 +59,9 @@ fn solveAll(contents: []const u8) Result {
 
     while (ind < contents.len) {
         var board: Board = .{
-            .board = [_]u5{ comptime std.math.maxInt(u5) } ** 100,
-            .setRow = [_]u3{ 5 } ** 5,
-            .setCol = [_]u3{ 5 } ** 5,
+            .board = [_]u5{comptime std.math.maxInt(u5)} ** 100,
+            .setRow = [_]u3{5} ** 5,
+            .setCol = [_]u3{5} ** 5,
         };
         var row: u5 = 0;
         while (row < 5) : (row += 1) {
