@@ -27,7 +27,7 @@ fn megaSolve(contents: []const u8) struct { part1: usize, part2: usize } {
     var ind: usize = 0;
     while (ind < contents.len) {
         var patterns = [_]u7{0} ** 10;
-        var outputs = [_]u7{0} ** 4;
+        
         for (patterns) |*pattern| {
             var pat: u7 = 0;
             while ('a' <= contents[ind] and contents[ind] <= 'g') : (ind += 1) {
@@ -36,10 +36,11 @@ fn megaSolve(contents: []const u8) struct { part1: usize, part2: usize } {
             pattern.* = pat;
             ind += 1;
         }
+        ind += 2;
 
         std.sort.sort(u7, &patterns, {}, sortPop);
 
-        ind += 2;
+        var outputs = [_]u7{0} ** 4;
         for (outputs) |*output| {
             var out: u7 = 0;
             while ('a' <= contents[ind] and contents[ind] <= 'g') : (ind += 1) {
@@ -56,79 +57,82 @@ fn megaSolve(contents: []const u8) struct { part1: usize, part2: usize } {
             }
         }
 
-        var numbers: [10]u8 = undefined;
-        numbers[1] = 0;
-        numbers[7] = 1;
-        numbers[4] = 2;
-        numbers[8] = 9;
+        // from raw value to index in numbers
+        var segmentsToNumber: [std.math.maxInt(u7)]u8 = undefined;
 
-        if (@popCount(patterns[6] & patterns[numbers[1]]) == 1) {
-            numbers[6] = 6;
-            if (patterns[7] & patterns[numbers[4]] == patterns[numbers[4]]) {
-                numbers[9] = 7;
-                numbers[0] = 8;
+        segmentsToNumber[patterns[0]] = 1;
+        segmentsToNumber[patterns[1]] = 7;
+        segmentsToNumber[patterns[2]] = 4;
+        segmentsToNumber[patterns[9]] = 8;
+
+        if (@popCount(patterns[6] & patterns[0]) == 1) {
+            segmentsToNumber[patterns[6]] = 6;
+
+            if (patterns[7] & patterns[2] == patterns[2]) {
+                segmentsToNumber[patterns[7]] = 9;
+                segmentsToNumber[patterns[8]] = 0;
             } else {
-                numbers[9] = 8;
-                numbers[0] = 7;
+                segmentsToNumber[patterns[8]] = 9;
+                segmentsToNumber[patterns[7]] = 0;
             }
-        } else if (@popCount(patterns[7] & patterns[numbers[1]]) == 1) {
-            numbers[6] = 7;
-            if (patterns[6] & patterns[numbers[4]] == patterns[numbers[4]]) {
-                numbers[9] = 6;
-                numbers[0] = 8;
+        } else if (@popCount(patterns[7] & patterns[0]) == 1) {
+            segmentsToNumber[patterns[7]] = 6;
+
+            if (patterns[6] & patterns[2] == patterns[2]) {
+                segmentsToNumber[patterns[6]] = 9;
+                segmentsToNumber[patterns[8]] = 0;
             } else {
-                numbers[9] = 8;
-                numbers[0] = 6;
+                segmentsToNumber[patterns[8]] = 9;
+                segmentsToNumber[patterns[6]] = 0;
             }
         } else {
-            numbers[6] = 8;
-            if (patterns[6] & patterns[numbers[4]] == patterns[numbers[4]]) {
-                numbers[9] = 6;
-                numbers[0] = 7;
+            segmentsToNumber[patterns[8]] = 6;
+
+            if (patterns[6] & patterns[2] == patterns[2]) {
+                segmentsToNumber[patterns[6]] = 9;
+                segmentsToNumber[patterns[7]] = 0;
             } else {
-                numbers[9] = 7;
-                numbers[0] = 6;
+                segmentsToNumber[patterns[7]] = 9;
+                segmentsToNumber[patterns[6]] = 0;
             }
         }
 
-        if (@popCount(patterns[3] & patterns[numbers[1]]) == 2) {
-            numbers[3] = 3;
-            if (patterns[4] & patterns[numbers[6]] == patterns[4]) {
-                numbers[5] = 4;
-                numbers[2] = 5;
+        if (@popCount(patterns[3] & patterns[0]) == 2) {
+            segmentsToNumber[patterns[3]] = 3;
+
+            if (patterns[4] & patterns[3] == patterns[4]) {
+                segmentsToNumber[patterns[4]] = 5;
+                segmentsToNumber[patterns[5]] = 2;
             } else {
-                numbers[5] = 5;
-                numbers[2] = 4;
+                segmentsToNumber[patterns[5]] = 5;
+                segmentsToNumber[patterns[4]] = 2;
             }
-        } else if (@popCount(patterns[4] & patterns[numbers[1]]) == 2) {
-            numbers[3] = 4;
-            if (patterns[3] & patterns[numbers[6]] == patterns[3]) {
-                numbers[5] = 3;
-                numbers[2] = 5;
+        } else if (@popCount(patterns[4] & patterns[0]) == 2) {
+            segmentsToNumber[patterns[4]] = 3;
+
+            if (patterns[3] & patterns[4] == patterns[3]) {
+                segmentsToNumber[patterns[3]] = 5;
+                segmentsToNumber[patterns[5]] = 2;
             } else {
-                numbers[5] = 5;
-                numbers[2] = 3;
+                segmentsToNumber[patterns[5]] = 5;
+                segmentsToNumber[patterns[3]] = 2;
             }
         } else {
-            numbers[3] = 5;
-            if (patterns[3] & patterns[numbers[6]] == patterns[3]) {
-                numbers[5] = 3;
-                numbers[2] = 4;
+            segmentsToNumber[patterns[5]] = 3;
+
+            if (patterns[3] & patterns[5] == patterns[3]) {
+                segmentsToNumber[patterns[3]] = 5;
+                segmentsToNumber[patterns[4]] = 2;
             } else {
-                numbers[5] = 4;
-                numbers[2] = 3;
+                segmentsToNumber[patterns[4]] = 5;
+                segmentsToNumber[patterns[3]] = 2;
             }
         }
 
         var res: usize = 0;
         for (outputs) |o| {
             res *= 10;
-            for (numbers) |n, i| {
-                if (o == patterns[n]) {
-                    res += i;
-                    break;
-                }
-            }
+            res += segmentsToNumber[o];
         }
 
         p2 += res;
@@ -137,10 +141,3 @@ fn megaSolve(contents: []const u8) struct { part1: usize, part2: usize } {
     return .{ .part1 = p1, .part2 = p2 };
 }
 
-fn getString(contents: []const u8) []const u8 {
-    var length: usize = 0;
-    while ('a' <= contents[length] and contents[length] <= 'g')
-        length += 1;
-
-    return contents[0..length];
-}

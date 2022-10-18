@@ -27,6 +27,8 @@ pub fn main() !void {
     // duration += try @import("./days/day05.zig").run(contents.day05, &writer, alloc);
     // duration += try @import("./days/day06.zig").run(contents.day06, &writer);
     // duration += try @import("./days/day07.zig").run(contents.day07, &writer, alloc);
+    var i: usize = 0;
+    while (i < 1000) : (i += 1)
     duration += try @import("./days/day08.zig").run(contents.day08, &writer);
     // duration += try @import("./days/day09.zig").run(contents.day09, &writer, alloc);
     // duration += try @import("days/day10.zig").run(contents.day10, &writer, alloc);
@@ -45,6 +47,7 @@ pub fn main() !void {
     // duration += try @import("./days/day23.zig").run(contents.day23, &writer, alloc);
     // duration += try @import("./days/day24.zig").run(contents.day24, &writer, allocator);
 
+    duration = @divExact(duration, 1000);
     try writer.print("aoc ran in:\n", .{});
     try writer.print("\t{d}s\n", .{@divFloor(duration, 1_000_000_000)});
     try writer.print("\t{d}ms\n", .{@divFloor(duration, 1_000_000)});
